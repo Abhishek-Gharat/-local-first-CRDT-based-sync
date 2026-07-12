@@ -47,3 +47,7 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# session continuity doc for whoever (human or agent) picks this build back up
+PROGRESS.md
+
