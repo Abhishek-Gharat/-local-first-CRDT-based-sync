@@ -1,0 +1,18 @@
+{
+  "name": "local-first-crdt-sync",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "dev:sync": "pnpm --filter sync-server dev",
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down"
+  }
+}
