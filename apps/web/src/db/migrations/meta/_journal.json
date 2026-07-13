@@ -22,6 +22,13 @@
       "when": 1783935527093,
       "tag": "0002_auth_lookup",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783966905943,
+      "tag": "0003_documents_select_owner_fix",
+      "breakpoints": true
     }
   ]
 }
