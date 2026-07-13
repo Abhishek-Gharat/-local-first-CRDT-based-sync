@@ -1,19 +1,23 @@
 import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
 import type { WebSocket } from "ws";
-import { encodeAwarenessUpdate, encodeUpdate } from "shared";
+import { encodeAwarenessUpdate, encodeUpdate, type DocumentRole } from "shared";
 
 /**
  * One in-memory "room" per document: the authoritative Yjs doc for that
  * document (as far as this server process is concerned) plus its shared
- * awareness state and the set of currently-connected sockets. No
- * persistence here — the source of truth for *durable* history is
- * `document_versions` in Postgres (M8); this is purely the live relay.
+ * awareness state and the currently-connected sockets. No persistence here
+ * — the source of truth for *durable* history is `document_versions` in
+ * Postgres (M8); this is purely the live relay.
+ *
+ * `conns` maps each socket to the role its handshake token was verified
+ * for (see server.ts) — read by the message handler to reject mutating
+ * frames from viewer-role connections.
  */
 export interface Room {
   doc: Y.Doc;
   awareness: Awareness;
-  conns: Set<WebSocket>;
+  conns: Map<WebSocket, DocumentRole>;
 }
 
 const rooms = new Map<string, Room>();
@@ -25,7 +29,7 @@ function send(socket: WebSocket, data: Uint8Array): void {
 }
 
 function broadcast(room: Room, data: Uint8Array, exclude: unknown): void {
-  for (const conn of room.conns) {
+  for (const conn of room.conns.keys()) {
     if (conn !== exclude) send(conn, data);
   }
 }
@@ -35,7 +39,7 @@ export function getRoom(docName: string): Room {
   if (!room) {
     const doc = new Y.Doc();
     const awareness = new Awareness(doc);
-    room = { doc, awareness, conns: new Set() };
+    room = { doc, awareness, conns: new Map() };
     rooms.set(docName, room);
 
     // Wired exactly once per room, not per connection: `origin` on these

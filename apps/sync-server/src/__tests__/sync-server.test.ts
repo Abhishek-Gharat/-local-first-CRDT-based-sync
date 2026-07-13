@@ -1,10 +1,18 @@
 import { describe, it, expect, afterEach } from "vitest";
 import * as Y from "yjs";
 import { WebSocketServer } from "ws";
-import { applyIncomingMessage, encodeSyncStep1, encodeUpdate } from "shared";
+import {
+  applyIncomingMessage,
+  encodeSyncStep1,
+  encodeUpdate,
+  mintSyncToken,
+  type DocumentRole,
+} from "shared";
 import { Awareness } from "y-protocols/awareness";
 import { createSyncServer } from "../server.js";
 import { resetRooms } from "../rooms.js";
+
+const TEST_SECRET = "test-secret-not-for-production";
 
 /**
  * Minimal stand-in for the real client sync engine (apps/web/src/lib/sync),
@@ -12,9 +20,15 @@ import { resetRooms } from "../rooms.js";
  * correctly. Not the production client — that has debouncing/backoff on
  * top of the same `shared` helpers.
  */
-function connectClient(port: number, docName: string, doc: Y.Doc) {
+function connectClient(
+  port: number,
+  docName: string,
+  doc: Y.Doc,
+  role: DocumentRole = "editor",
+) {
   const awareness = new Awareness(doc);
-  const socket = new WebSocket(`ws://localhost:${port}/${docName}`);
+  const token = mintSyncToken({ userId: "user-1", documentId: docName, role }, TEST_SECRET);
+  const socket = new WebSocket(`ws://localhost:${port}/${docName}?token=${token}`);
   socket.binaryType = "arraybuffer";
 
   const opened = new Promise<void>((resolve) => {
@@ -50,7 +64,7 @@ describe("sync-server convergence", () => {
   });
 
   it("relays live edits between two connected clients", async () => {
-    wss = createSyncServer(0);
+    wss = createSyncServer(0, { tokenSecret: TEST_SECRET });
     const port = (wss.address() as { port: number }).port;
 
     const docA = new Y.Doc();
@@ -71,7 +85,7 @@ describe("sync-server convergence", () => {
   });
 
   it("converges an offline client's edits with zero data loss on reconnect", async () => {
-    wss = createSyncServer(0);
+    wss = createSyncServer(0, { tokenSecret: TEST_SECRET });
     const port = (wss.address() as { port: number }).port;
 
     const docOnline = new Y.Doc();
@@ -102,5 +116,35 @@ describe("sync-server convergence", () => {
 
     online.close();
     reconnected.close();
+  });
+
+  it("rejects a write from a viewer-role connection and leaves the document unchanged", async () => {
+    wss = createSyncServer(0, { tokenSecret: TEST_SECRET });
+    const port = (wss.address() as { port: number }).port;
+
+    const docEditor = new Y.Doc();
+    const docViewer = new Y.Doc();
+
+    const editor = connectClient(port, "doc-viewer-write", docEditor, "editor");
+    const viewer = connectClient(port, "doc-viewer-write", docViewer, "viewer");
+    await Promise.all([editor.opened, viewer.opened]);
+    editor.sendSyncStep1();
+    viewer.sendSyncStep1();
+
+    const viewerClosed = new Promise<{ code: number }>((resolve) => {
+      viewer.socket.addEventListener("close", (event) => resolve({ code: event.code }), {
+        once: true,
+      });
+    });
+
+    // a mutating edit on the viewer side is relayed as an Update frame by
+    // connectClient's doc.on('update', ...) wiring — same as a real client
+    docViewer.getText("content").insert(0, "viewer should not be able to write this");
+    const { code } = await viewerClosed;
+
+    expect(code).toBe(4403);
+    expect(docEditor.getText("content").toString()).toBe("");
+
+    editor.close();
   });
 });

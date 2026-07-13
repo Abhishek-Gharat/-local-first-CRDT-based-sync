@@ -1,14 +1,20 @@
 import { describe, it, expect, afterEach } from "vitest";
 import * as Y from "yjs";
 import * as decoding from "lib0/decoding";
-import { MESSAGE_SYNC } from "shared";
+import { MESSAGE_SYNC, mintSyncToken } from "shared";
 import * as syncProtocol from "y-protocols/sync";
 import type { WebSocketServer } from "ws";
 import { createSyncServer } from "sync-server";
 import { createSyncEngine, type SyncEngine } from "../sync-engine.js";
 
+const TEST_SECRET = "test-secret-not-for-production";
+
 function serverPort(wss: WebSocketServer): number {
   return (wss.address() as { port: number }).port;
+}
+
+function getToken(documentId: string): () => string {
+  return () => mintSyncToken({ userId: "user-1", documentId, role: "editor" }, TEST_SECRET);
 }
 
 function waitFor(predicate: () => boolean, timeoutMs = 2000): Promise<void> {
@@ -34,7 +40,7 @@ describe("createSyncEngine", () => {
   });
 
   it("debounces rapid local edits into a single merged update message", async () => {
-    wss = createSyncServer(0);
+    wss = createSyncServer(0, { tokenSecret: TEST_SECRET });
     const port = serverPort(wss);
 
     let updateMessages = 0;
@@ -57,6 +63,7 @@ describe("createSyncEngine", () => {
     const engine = createSyncEngine({
       doc,
       url: `ws://localhost:${port}/debounce-room`,
+      getToken: getToken("debounce-room"),
       debounceMs: 50,
     });
     engines.push(engine);
@@ -77,14 +84,26 @@ describe("createSyncEngine", () => {
   });
 
   it("recovers from a dropped connection and converges via exponential-backoff reconnect", async () => {
-    wss = createSyncServer(0);
+    wss = createSyncServer(0, { tokenSecret: TEST_SECRET });
     const port = serverPort(wss);
     const url = `ws://localhost:${port}/reconnect-room`;
 
     const docA = new Y.Doc();
     const docB = new Y.Doc();
-    const engineA = createSyncEngine({ doc: docA, url, debounceMs: 20, minBackoffMs: 30 });
-    const engineB = createSyncEngine({ doc: docB, url, debounceMs: 20, minBackoffMs: 30 });
+    const engineA = createSyncEngine({
+      doc: docA,
+      url,
+      getToken: getToken("reconnect-room"),
+      debounceMs: 20,
+      minBackoffMs: 30,
+    });
+    const engineB = createSyncEngine({
+      doc: docB,
+      url,
+      getToken: getToken("reconnect-room"),
+      debounceMs: 20,
+      minBackoffMs: 30,
+    });
     engines.push(engineA, engineB);
 
     await waitFor(() => engineA.getStatus() === "connected");

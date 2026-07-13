@@ -11,8 +11,21 @@ export type ConnectionStatus = "connecting" | "connected" | "offline";
 
 export interface SyncEngineOptions {
   doc: Y.Doc;
-  /** e.g. `wss://sync.example.com/<documentId>` */
+  /** e.g. `wss://sync.example.com/<documentId>` — no token; getToken supplies one per attempt */
   url: string;
+  /**
+   * Called immediately before every connection attempt (the initial one and
+   * every reconnect) to get a fresh handshake token, appended to `url` as
+   * `?token=...`. Sync tokens are deliberately short-lived (60s — see
+   * mintSyncToken's default), which is incompatible with baking one token
+   * into a static URL at construction time: this is explicitly an
+   * offline-first app, so a reconnect can happen arbitrarily long after the
+   * token that was valid at connect time has expired. Fetching fresh here
+   * is what keeps "reconnect after a long offline period" actually working
+   * once the server enforces auth, instead of retrying forever with a
+   * permanently-stale token.
+   */
+  getToken: () => Promise<string> | string;
   awareness?: Awareness;
   /** batches rapid local edits before sending a merged update — default 200ms */
   debounceMs?: number;
@@ -47,6 +60,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   const {
     doc,
     url,
+    getToken,
     awareness = new Awareness(doc),
     debounceMs = 200,
     minBackoffMs = 500,
@@ -96,10 +110,23 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   }
   awareness.on("update", onAwarenessUpdate);
 
-  function connect() {
+  async function connect() {
     if (destroyed) return;
     setStatus("connecting");
-    const ws = new WebSocket(url);
+
+    let token: string;
+    try {
+      token = await getToken();
+    } catch {
+      // couldn't mint/fetch a token (e.g. still offline) — fall back to the
+      // normal backoff/retry loop instead of throwing out of connect()
+      scheduleReconnect();
+      return;
+    }
+    if (destroyed) return;
+
+    const separator = url.includes("?") ? "&" : "?";
+    const ws = new WebSocket(`${url}${separator}token=${encodeURIComponent(token)}`);
     ws.binaryType = "arraybuffer";
     socket = ws;
 
@@ -127,11 +154,11 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
       backoff = Math.min(backoff * 2, maxBackoffMs);
-      connect();
+      void connect();
     }, backoff);
   }
 
-  connect();
+  void connect();
 
   return {
     awareness,
