@@ -13,6 +13,11 @@ interface VersionSummary {
   createdAt: string;
 }
 
+interface ChangeSummary {
+  summary: string;
+  aiGenerated: boolean;
+}
+
 interface VersionHistoryProps {
   documentId: string;
   doc: Y.Doc;
@@ -30,6 +35,10 @@ export function VersionHistory({ documentId, doc, canWrite }: VersionHistoryProp
   const [versions, setVersions] = useState<VersionSummary[]>([]);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
+  // The change summary is per-version and on demand: id of the version being
+  // summarized (for the spinner), plus the last result keyed by version id.
+  const [summarizing, setSummarizing] = useState<string | null>(null);
+  const [summaries, setSummaries] = useState<Record<string, ChangeSummary>>({});
 
   const loadVersions = useCallback(async () => {
     const { versions: rows } = await fetchJson<{ versions: VersionSummary[] }>(
@@ -76,6 +85,30 @@ export function VersionHistory({ documentId, doc, canWrite }: VersionHistoryProp
       restoreSnapshotIntoDoc(doc, decodeSnapshot(version.snapshot));
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Summarizes what changed between a saved version and the document as it
+  // stands right now. The current state is snapshotted from the live Y.Doc
+  // client-side (the doc only exists in the browser) and posted alongside the
+  // version id; the server diffs the two and asks the configured AI provider
+  // for a plain-language summary (falling back to a word-count diff when no
+  // provider is set).
+  async function handleSummarize(versionId: string) {
+    setSummarizing(versionId);
+    try {
+      const toSnapshot = encodeSnapshot(Y.encodeStateAsUpdate(doc));
+      const result = await fetchJson<ChangeSummary>(
+        `/api/documents/${documentId}/summary`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fromVersionId: versionId, toSnapshot }),
+        },
+      );
+      setSummaries((prev) => ({ ...prev, [versionId]: result }));
+    } finally {
+      setSummarizing(null);
     }
   }
 
@@ -126,21 +159,51 @@ export function VersionHistory({ documentId, doc, canWrite }: VersionHistoryProp
           {versions.map((version) => {
             const when = new Date(version.createdAt);
             const display = version.label ?? when.toLocaleString();
+            const summary = summaries[version.id];
             return (
-              <li key={version.id} className="flex items-center justify-between gap-2 text-sm">
-                <time dateTime={when.toISOString()} className="text-muted-foreground">
-                  {display}
-                </time>
-                {canWrite && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => handleRestore(version.id)}
-                    aria-label={`Restore version from ${display}`}
+              <li key={version.id} className="flex flex-col gap-1 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <time dateTime={when.toISOString()} className="text-muted-foreground">
+                    {display}
+                  </time>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={summarizing !== null}
+                      onClick={() => handleSummarize(version.id)}
+                      aria-label={`Summarize changes since version from ${display}`}
+                    >
+                      {summarizing === version.id ? "Summarizing…" : "Summarize changes"}
+                    </Button>
+                    {canWrite && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => handleRestore(version.id)}
+                        aria-label={`Restore version from ${display}`}
+                      >
+                        Restore
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {summary && (
+                  // The generated summary lands in a polite live region so a
+                  // screen-reader user hears it once it's ready, and the
+                  // AI-vs-fallback provenance is stated in the text rather
+                  // than implied — no fabricated authorship.
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    className="rounded-md bg-muted/50 p-2 text-xs text-muted-foreground"
                   >
-                    Restore
-                  </Button>
+                    {summary.summary}
+                    {!summary.aiGenerated && (
+                      <span className="ml-1 italic">(no AI provider configured)</span>
+                    )}
+                  </p>
                 )}
               </li>
             );
