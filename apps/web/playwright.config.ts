@@ -37,8 +37,10 @@ export default defineConfig({
   webServer: [
     {
       // The sync-server has no build step (tsx runs the TS directly); load its
-      // own .env so SYNC_TOKEN_SECRET matches the web app's.
-      command: "pnpm exec tsx --env-file=.env src/index.ts",
+      // own .env locally so SYNC_TOKEN_SECRET matches the web app's. In CI
+      // there is no .env file — the secret comes from the job environment
+      // instead — so use the -if-exists variant to avoid a hard failure.
+      command: "pnpm exec tsx --env-file-if-exists=.env src/index.ts",
       cwd: "../sync-server",
       port: SYNC_PORT,
       reuseExistingServer: !process.env.CI,

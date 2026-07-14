@@ -1,0 +1,177 @@
+name: ci
+
+# Reproduces the local gate on every push/PR to main, against a real Postgres
+# (the RLS + RBAC integration tests are only meaningful against a live database,
+# not a mock). Order mirrors the local discipline: build the shared package
+# first (web + sync-server import it from dist/), then lint -> typecheck ->
+# unit/integration tests -> build -> e2e.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# One in-flight run per ref; a newer push cancels the older run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: docsync
+          POSTGRES_PASSWORD: docsync
+          POSTGRES_DB: docsync
+        ports:
+          - 5432:5432
+        # Wait until Postgres is actually accepting connections before the job
+        # steps run, so the first migration doesn't race the container.
+        options: >-
+          --health-cmd "pg_isready -U docsync"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Migrations run as the superuser (CREATE POLICY / GRANT need it); the app
+      # and the integration tests connect as the restricted app_user so RLS
+      # actually applies. Both point at the service container above.
+      DATABASE_URL: postgresql://docsync:docsync@localhost:5432/docsync
+      APP_DATABASE_URL: postgresql://app_user:app_user@localhost:5432/docsync
+      # CI-only throwaway secrets — real deploys inject their own. They only
+      # need to be present and internally consistent (web mints a token the
+      # sync-server verifies with the same SYNC_TOKEN_SECRET).
+      AUTH_SECRET: ci-auth-secret-not-used-in-production-000000000000
+      SYNC_TOKEN_SECRET: ci-sync-token-secret-not-used-in-production-0000
+      # Baked into the web build; the e2e sync-server listens here.
+      NEXT_PUBLIC_SYNC_SERVER_URL: ws://localhost:1234
+      # next start (production) doesn't auto-trust the request host the way
+      # next dev does — without this NextAuth rejects localhost as UntrustedHost.
+      AUTH_TRUST_HOST: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Create the restricted, non-superuser role the app connects as. Locally
+      # docker/init-app-role.sh does this on container init; the CI service
+      # container doesn't run init scripts, so provision it explicitly. The RLS
+      # migration then GRANTs it table/function access.
+      - name: Provision restricted app_user role
+        run: |
+          PGPASSWORD=docsync psql -h localhost -U docsync -d docsync -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_user') THEN
+              CREATE ROLE app_user LOGIN PASSWORD 'app_user';
+            END IF;
+          END
+          $$;
+          GRANT CONNECT ON DATABASE docsync TO app_user;
+          SQL
+
+      # web + sync-server import `shared` from its compiled dist/, so it must be
+      # built before typecheck/lint/build touch them.
+      - name: Build shared package
+        run: pnpm --filter shared build
+
+      - name: Run database migrations
+        run: pnpm --filter web db:migrate
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Test (unit + integration)
+        run: pnpm run test
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Install Playwright browsers
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: pnpm --filter web test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+
+  # Deploy only on a green push to main. Each step is individually guarded on
+  # its provider secret being present, so the job is a no-op (and stays green)
+  # until the user wires up Vercel/Railway — nothing here fails a build just
+  # because the accounts aren't set up yet. See ARCHITECTURE.md / README for
+  # which secrets to add and how to obtain them.
+  deploy:
+    needs: gate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    # Map secrets into env once at the job level. Guarding step `if:` on
+    # env.* is the reliable pattern — `secrets.*` isn't available in every
+    # `if:` context, but env always is.
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # --- Web app -> Vercel -------------------------------------------------
+      # Requires repo secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID.
+      - name: Deploy web to Vercel
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        run: |
+          pnpm dlx vercel@latest pull --yes --environment=production \
+            --token="$VERCEL_TOKEN" --cwd apps/web
+          pnpm dlx vercel@latest build --prod \
+            --token="$VERCEL_TOKEN" --cwd apps/web
+          pnpm dlx vercel@latest deploy --prebuilt --prod \
+            --token="$VERCEL_TOKEN" --cwd apps/web
+
+      # --- Sync-server -> Railway -------------------------------------------
+      # Requires repo secret: RAILWAY_TOKEN (project-scoped deploy token). The
+      # Railway service is configured to run `pnpm --filter sync-server start`.
+      - name: Deploy sync-server to Railway
+        if: ${{ env.RAILWAY_TOKEN != '' }}
+        run: pnpm dlx @railway/cli@latest up --service sync-server --detach
+
+      - name: Note when no deploy targets are configured
+        if: ${{ env.VERCEL_TOKEN == '' && env.RAILWAY_TOKEN == '' }}
+        run: |
+          echo "No deploy secrets configured yet — skipping deploy."
+          echo "Add VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID and"
+          echo "RAILWAY_TOKEN in repo Settings -> Secrets to enable it."
