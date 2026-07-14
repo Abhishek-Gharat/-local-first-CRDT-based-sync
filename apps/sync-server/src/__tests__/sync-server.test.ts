@@ -147,4 +147,51 @@ describe("sync-server convergence", () => {
 
     editor.close();
   });
+
+  it("rejects an oversized/malformed frame with 4400 and keeps serving other clients", async () => {
+    wss = createSyncServer(0, { tokenSecret: TEST_SECRET });
+    const port = (wss.address() as { port: number }).port;
+
+    // an authenticated editor sends a garbage frame far over the size cap —
+    // the server must close *that* connection (4400) without crashing the
+    // process or disturbing anyone else in the room
+    const token = mintSyncToken(
+      { userId: "attacker", documentId: "doc-oversized", role: "editor" },
+      TEST_SECRET,
+    );
+    const rawSocket = new WebSocket(`ws://localhost:${port}/doc-oversized?token=${token}`);
+    rawSocket.binaryType = "arraybuffer";
+    await new Promise<void>((resolve) => {
+      rawSocket.addEventListener("open", () => resolve(), { once: true });
+    });
+
+    const rawClosed = new Promise<{ code: number }>((resolve) => {
+      rawSocket.addEventListener("close", (event) => resolve({ code: event.code }), { once: true });
+    });
+
+    // 2MB of zeros — over the 1MB MAX_MESSAGE_BYTES cap. ws' maxPayload may
+    // close with 1009 before our handler runs, or our parseMessageEnvelope
+    // check closes with 4400; either way the connection is dropped and the
+    // server stays up. Accept both codes.
+    rawSocket.send(new Uint8Array(2 * 1024 * 1024));
+    const { code } = await rawClosed;
+    expect([4400, 1009]).toContain(code);
+
+    // the server is still alive: two normal clients can still connect to a
+    // different room and sync end-to-end afterwards
+    const docA = new Y.Doc();
+    const docB = new Y.Doc();
+    const clientA = connectClient(port, "doc-still-alive", docA);
+    const clientB = connectClient(port, "doc-still-alive", docB);
+    await Promise.all([clientA.opened, clientB.opened]);
+    clientA.sendSyncStep1();
+    clientB.sendSyncStep1();
+
+    docA.getText("content").insert(0, "still working");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(docB.getText("content").toString()).toBe("still working");
+
+    clientA.close();
+    clientB.close();
+  });
 });

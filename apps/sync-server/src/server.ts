@@ -4,10 +4,12 @@ import {
   applyIncomingMessage,
   encodeSyncStep1,
   verifySyncToken,
+  parseMessageEnvelope,
+  isMutatingSyncMessage,
+  MAX_MESSAGE_BYTES,
   type SyncTokenPayload,
 } from "shared";
 import { getRoom } from "./rooms.js";
-import { isMutatingSyncMessage } from "./message-guard.js";
 
 /**
  * Document name comes from the connection path: `ws://host/<documentId>`.
@@ -51,6 +53,12 @@ export function createSyncServer(
 
   const wss = new WebSocketServer({
     port,
+    // Defense-in-depth: `ws` rejects a frame larger than this before it's
+    // fully buffered into memory (closing the connection with 1009), so an
+    // oversized payload never even reaches the 'message' handler. The
+    // application-level parseMessageEnvelope check enforces the same bound
+    // again on the decoded buffer.
+    maxPayload: MAX_MESSAGE_BYTES,
     verifyClient: ({ req }, callback) => {
       const token = tokenFromRequest(req);
       const payload = token ? verifySyncToken(token, tokenSecret) : null;
@@ -88,10 +96,20 @@ export function createSyncServer(
         ? new Uint8Array(Buffer.concat(data))
         : new Uint8Array(data as ArrayBuffer);
 
+      // Validated (size cap + recognized envelope shape) before any
+      // Y-protocol decode touches its content — an oversized or malformed
+      // frame is dropped and the connection closed rather than handed to
+      // applyIncomingMessage, which assumes a well-formed message.
+      const envelope = parseMessageEnvelope(message);
+      if (!envelope) {
+        socket.close(4400, "invalid or oversized message");
+        return;
+      }
+
       // Viewers may still exchange SyncStep1 (read-only state-vector
       // announcements) and awareness (cursor/presence) — only frames that
       // actually mutate the document (SyncStep2, Update) are rejected.
-      if (payload.role === "viewer" && isMutatingSyncMessage(message)) {
+      if (payload.role === "viewer" && isMutatingSyncMessage(envelope)) {
         socket.close(4403, "forbidden: viewer role cannot write");
         return;
       }
@@ -101,6 +119,16 @@ export function createSyncServer(
     });
 
     socket.on("close", () => {
+      room.conns.delete(socket);
+    });
+
+    // `ws` emits 'error' on protocol-level faults (e.g. a frame exceeding
+    // maxPayload → WS_ERR_UNSUPPORTED_MESSAGE_LENGTH). Without a listener,
+    // that error propagates to an uncaught exception and takes the whole
+    // process down — a single malformed client would DoS every document.
+    // Swallow it per-connection: the socket is already being torn down by
+    // ws; we just drop it from the room and keep serving everyone else.
+    socket.on("error", () => {
       room.conns.delete(socket);
     });
   });
