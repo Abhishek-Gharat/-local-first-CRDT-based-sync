@@ -6,6 +6,7 @@ import type { DocumentRole } from "shared";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { createSyncEngine, type ConnectionStatus } from "@/lib/sync/sync-engine";
 import { CollaborativeEditor } from "@/components/editor/collaborative-editor";
+import { VersionHistory } from "@/components/editor/version-history";
 import { Badge } from "@/components/ui/badge";
 
 interface DocumentEditorProps {
@@ -62,6 +63,7 @@ export function DocumentEditor({ documentId, title, role }: DocumentEditorProps)
           <span role="status" aria-live="polite" className="text-xs text-muted-foreground">
             {STATUS_LABEL[status]}
           </span>
+          <VersionHistory documentId={documentId} doc={doc} canWrite={role !== "viewer"} />
         </div>
       </div>
       <div className="min-h-64 rounded-lg border border-border p-4">
