@@ -107,4 +107,36 @@ describe.skipIf(!adminUrl || !appUrl)("RLS tenant isolation", () => {
       ),
     ).rejects.toThrow();
   });
+
+  // Regression test for the registration-500 bug: signup runs on the
+  // app_user connection with no app.current_user_id set at all (there's no
+  // session yet), unlike every other test above which goes through
+  // asUser(). `.returning()` makes Postgres check the INSERT'd row against
+  // the table's SELECT policy too, and users_select_self requires
+  // id = app_current_user_id(), which is null pre-auth — so a `.returning()`
+  // insert here fails RLS even though users_insert_self's WITH CHECK (true)
+  // allows the insert itself. Mirrors the fix in
+  // src/app/api/auth/register/route.ts (generate the id client-side, skip
+  // `.returning()`).
+  it("allows a pre-auth signup insert with no user context, without .returning()", async () => {
+    const suffix = Math.random().toString(36).slice(2);
+    const id = crypto.randomUUID();
+    await expect(
+      appDb
+        .insert(schema.users)
+        .values({ id, email: `signup-${suffix}@test.local`, passwordHash: "x", name: "New User" }),
+    ).resolves.not.toThrow();
+
+    await adminDb.delete(schema.users).where(inArray(schema.users.id, [id]));
+  });
+
+  it("rejects a pre-auth signup insert with no user context when using .returning()", async () => {
+    const suffix = Math.random().toString(36).slice(2);
+    await expect(
+      appDb
+        .insert(schema.users)
+        .values({ email: `signup-${suffix}@test.local`, passwordHash: "x", name: "New User" })
+        .returning(),
+    ).rejects.toThrow();
+  });
 });
