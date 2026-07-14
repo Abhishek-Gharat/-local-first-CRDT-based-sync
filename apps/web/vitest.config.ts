@@ -18,5 +18,9 @@ export default defineConfig({
     // network round-trips comfortably exceed vitest's 5s/10s defaults.
     testTimeout: 20000,
     hookTimeout: 20000,
+    // The e2e/ specs use @playwright/test's runner, not vitest — exclude them
+    // so `vitest run` doesn't try to execute them (and fail on the missing
+    // vitest globals). Playwright picks them up via playwright.config.ts.
+    exclude: ["**/node_modules/**", "**/dist/**", "e2e/**"],
   },
 });
