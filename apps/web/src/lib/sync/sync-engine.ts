@@ -7,7 +7,7 @@ import {
   encodeUpdate,
 } from "shared";
 
-export type ConnectionStatus = "connecting" | "connected" | "offline";
+export type ConnectionStatus = "online" | "offline" | "syncing" | "conflict-resolved";
 
 export interface SyncEngineOptions {
   doc: Y.Doc;
@@ -32,6 +32,13 @@ export interface SyncEngineOptions {
   /** base delay for reconnect backoff, doubles up to maxBackoffMs — default 500ms */
   minBackoffMs?: number;
   maxBackoffMs?: number;
+  /**
+   * How long the transient "conflict-resolved" status lingers after a remote
+   * edit merges concurrent local changes, before reverting to the steady
+   * online/syncing state — default 2500ms (long enough for a human to notice
+   * the indicator, short enough not to feel stuck).
+   */
+  conflictResolvedMs?: number;
   onStatusChange?: (status: ConnectionStatus) => void;
 }
 
@@ -65,21 +72,56 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     debounceMs = 200,
     minBackoffMs = 500,
     maxBackoffMs = 10_000,
+    conflictResolvedMs = 2500,
     onStatusChange,
   } = options;
 
   let socket: WebSocket | null = null;
-  let status: ConnectionStatus = "connecting";
   let destroyed = false;
   let backoff = minBackoffMs;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let conflictTimer: ReturnType<typeof setTimeout> | null = null;
   let pendingUpdates: Uint8Array[] = [];
 
-  function setStatus(next: ConnectionStatus) {
-    if (status === next) return;
-    status = next;
-    onStatusChange?.(status);
+  // The reported ConnectionStatus is *derived* from these two internal
+  // signals rather than set directly, so every transition ("started
+  // typing", "flush completed", "socket dropped", "remote merge landed")
+  // routes through one recompute and can't leave the four public states
+  // inconsistent with each other.
+  let phase: "connecting" | "open" | "closed" = "connecting";
+  let reportedStatus: ConnectionStatus = "syncing";
+
+  function computeStatus(): ConnectionStatus {
+    // Offline dominates: if the socket is down, nothing else about
+    // in-flight edits or a recent merge is worth showing.
+    if (phase === "closed") return "offline";
+    // A just-merged concurrent edit is a transient, attention-worthy
+    // overlay that outranks the steady online/syncing distinction.
+    if (conflictTimer) return "conflict-resolved";
+    // Still handshaking, or local edits are batched/in-flight to the server.
+    if (phase === "connecting" || pendingUpdates.length > 0) return "syncing";
+    return "online";
+  }
+
+  function recomputeStatus() {
+    const next = computeStatus();
+    if (next === reportedStatus) return;
+    reportedStatus = next;
+    onStatusChange?.(reportedStatus);
+  }
+
+  // Fired when a remote edit merges while we still have unsent local edits —
+  // i.e. the CRDT just reconciled a genuine concurrent edit. Shows the
+  // "conflict-resolved" state briefly (no user action needed — Yjs already
+  // merged losslessly; this is purely to make the merge visible).
+  function signalConflictResolved() {
+    if (conflictTimer) clearTimeout(conflictTimer);
+    conflictTimer = setTimeout(() => {
+      conflictTimer = null;
+      recomputeStatus();
+    }, conflictResolvedMs);
+    recomputeStatus();
   }
 
   function flushPendingUpdates() {
@@ -89,11 +131,18 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       pendingUpdates.length === 1 ? pendingUpdates[0] : Y.mergeUpdates(pendingUpdates);
     pendingUpdates = [];
     socket.send(encodeUpdate(merged));
+    recomputeStatus();
   }
 
   function onDocUpdate(update: Uint8Array, origin: unknown) {
-    if (origin === REMOTE_ORIGIN) return;
+    if (origin === REMOTE_ORIGIN) {
+      // A remote edit landed while our own edits are still queued locally:
+      // the two were made concurrently and Yjs just merged them.
+      if (pendingUpdates.length > 0) signalConflictResolved();
+      return;
+    }
     pendingUpdates.push(update);
+    recomputeStatus();
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(flushPendingUpdates, debounceMs);
   }
@@ -112,7 +161,8 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
 
   async function connect() {
     if (destroyed) return;
-    setStatus("connecting");
+    phase = "connecting";
+    recomputeStatus();
 
     let token: string;
     try {
@@ -132,9 +182,10 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
 
     ws.addEventListener("open", () => {
       backoff = minBackoffMs;
-      setStatus("connected");
+      phase = "open";
       ws.send(encodeSyncStep1(doc));
       flushPendingUpdates();
+      recomputeStatus();
     });
 
     ws.addEventListener("message", (event) => {
@@ -149,7 +200,8 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
 
   function scheduleReconnect() {
     if (destroyed) return;
-    setStatus("offline");
+    phase = "closed";
+    recomputeStatus();
     if (reconnectTimer) return;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
@@ -162,13 +214,14 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
 
   return {
     awareness,
-    getStatus: () => status,
+    getStatus: () => reportedStatus,
     destroy() {
       destroyed = true;
       doc.off("update", onDocUpdate);
       awareness.off("update", onAwarenessUpdate);
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (debounceTimer) clearTimeout(debounceTimer);
+      if (conflictTimer) clearTimeout(conflictTimer);
       socket?.close();
     },
   };

@@ -68,7 +68,7 @@ describe("createSyncEngine", () => {
     });
     engines.push(engine);
 
-    await waitFor(() => engine.getStatus() === "connected");
+    await waitFor(() => engine.getStatus() === "online");
 
     const text = doc.getText("content");
     for (let i = 0; i < 5; i += 1) {
@@ -106,8 +106,8 @@ describe("createSyncEngine", () => {
     });
     engines.push(engineA, engineB);
 
-    await waitFor(() => engineA.getStatus() === "connected");
-    await waitFor(() => engineB.getStatus() === "connected");
+    await waitFor(() => engineA.getStatus() === "online");
+    await waitFor(() => engineB.getStatus() === "online");
 
     // simulate B's network dropping mid-session by terminating its
     // connection from the server side — B's own edit below happens while
@@ -123,7 +123,7 @@ describe("createSyncEngine", () => {
 
     // engineB's backoff timer fires and it reconnects to the same server on
     // its own — no manual intervention.
-    await waitFor(() => engineB.getStatus() === "connected", 5000);
+    await waitFor(() => engineB.getStatus() === "online", 5000);
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const finalA = docA.getText("content").toString();
@@ -132,6 +132,55 @@ describe("createSyncEngine", () => {
     expect(finalA).toBe(finalB);
     expect(finalA).toContain("edit from A");
     expect(finalA).toContain("offline edit from B");
+    expect(Y.encodeStateAsUpdate(docA)).toEqual(Y.encodeStateAsUpdate(docB));
+  });
+
+  it("surfaces 'conflict-resolved' when a remote edit merges concurrent unsent local edits", async () => {
+    wss = createSyncServer(0, { tokenSecret: TEST_SECRET });
+    const port = serverPort(wss);
+    const url = `ws://localhost:${port}/conflict-room`;
+
+    // A's debounce is long so its local edit stays *pending* (unsent) while
+    // B's edit arrives — that's exactly the concurrent-edit window the
+    // conflict-resolved status is meant to surface. B flushes fast.
+    const docA = new Y.Doc();
+    const docB = new Y.Doc();
+    const engineA = createSyncEngine({
+      doc: docA,
+      url,
+      getToken: getToken("conflict-room"),
+      debounceMs: 1000,
+      conflictResolvedMs: 300,
+    });
+    const engineB = createSyncEngine({
+      doc: docB,
+      url,
+      getToken: getToken("conflict-room"),
+      debounceMs: 10,
+    });
+    engines.push(engineA, engineB);
+
+    await waitFor(() => engineA.getStatus() === "online");
+    await waitFor(() => engineB.getStatus() === "online");
+
+    // A types (edit is now queued locally, held by the 1s debounce)...
+    docA.getText("content").insert(0, "A's local edit ");
+    expect(engineA.getStatus()).toBe("syncing");
+
+    // ...and before A's debounce flushes, B's concurrent edit arrives and
+    // Yjs merges it into A's doc. A's engine should flag conflict-resolved.
+    docB.getText("content").insert(0, "B's remote edit ");
+    await waitFor(() => engineA.getStatus() === "conflict-resolved", 3000);
+
+    // it's transient: after conflictResolvedMs it settles back to a steady
+    // state (still syncing here, since A's local edit is still pending)
+    await waitFor(() => engineA.getStatus() !== "conflict-resolved", 3000);
+    expect(engineA.getStatus()).toBe("syncing");
+
+    // and the merge itself is lossless — both edits survive on both sides
+    await waitFor(() => docB.getText("content").toString().includes("A's local edit"), 3000);
+    expect(docA.getText("content").toString()).toContain("A's local edit");
+    expect(docA.getText("content").toString()).toContain("B's remote edit");
     expect(Y.encodeStateAsUpdate(docA)).toEqual(Y.encodeStateAsUpdate(docB));
   });
 });

@@ -81,23 +81,34 @@ export function VersionHistory({ documentId, doc, canWrite }: VersionHistoryProp
 
   if (!open) {
     return (
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+        aria-expanded={false}
+        aria-controls="version-history-panel"
+      >
         History
       </Button>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+    <section
+      id="version-history-panel"
+      aria-label="Version history"
+      aria-busy={busy}
+      className="flex flex-col gap-2 rounded-lg border border-border p-3"
+    >
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">Version history</span>
+        <h2 className="text-sm font-medium">Version history</h2>
         <div className="flex items-center gap-2">
           {canWrite && (
             <Button size="sm" onClick={handleCapture} disabled={busy}>
               Save version
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+          <Button variant="ghost" size="sm" onClick={() => setOpen(false)} aria-expanded>
             Close
           </Button>
         </div>
@@ -105,26 +116,37 @@ export function VersionHistory({ documentId, doc, canWrite }: VersionHistoryProp
       {versions.length === 0 ? (
         <p className="text-xs text-muted-foreground">No saved versions yet.</p>
       ) : (
-        <ul className="flex flex-col gap-1">
-          {versions.map((version) => (
-            <li key={version.id} className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">
-                {version.label ?? new Date(version.createdAt).toLocaleString()}
-              </span>
-              {canWrite && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => handleRestore(version.id)}
-                >
-                  Restore
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
+        // An ordered list is the correct semantics for a chronological
+        // timeline (newest first, per the API's ORDER BY). Each row is fully
+        // keyboard-reachable: the label text and the Restore button are both
+        // in normal tab order, and the button's aria-label spells out *which*
+        // version it restores, since the visible "Restore" text alone is
+        // ambiguous when several rows are read in sequence.
+        <ol className="flex flex-col gap-1">
+          {versions.map((version) => {
+            const when = new Date(version.createdAt);
+            const display = version.label ?? when.toLocaleString();
+            return (
+              <li key={version.id} className="flex items-center justify-between gap-2 text-sm">
+                <time dateTime={when.toISOString()} className="text-muted-foreground">
+                  {display}
+                </time>
+                {canWrite && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => handleRestore(version.id)}
+                    aria-label={`Restore version from ${display}`}
+                  >
+                    Restore
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ol>
       )}
-    </div>
+    </section>
   );
 }

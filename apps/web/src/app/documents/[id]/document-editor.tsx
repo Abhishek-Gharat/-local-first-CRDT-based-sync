@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import * as Y from "yjs";
 import type { DocumentRole } from "shared";
 import { IndexeddbPersistence } from "y-indexeddb";
-import { createSyncEngine, type ConnectionStatus } from "@/lib/sync/sync-engine";
+import { createSyncEngine, type ConnectionStatus as Status } from "@/lib/sync/sync-engine";
 import { CollaborativeEditor } from "@/components/editor/collaborative-editor";
+import { ConnectionStatus } from "@/components/editor/connection-status";
 import { VersionHistory } from "@/components/editor/version-history";
 import { Badge } from "@/components/ui/badge";
 
@@ -24,18 +25,12 @@ async function fetchSyncToken(documentId: string): Promise<string> {
   return body.token;
 }
 
-const STATUS_LABEL: Record<ConnectionStatus, string> = {
-  connecting: "Connecting…",
-  connected: "Connected — changes sync live",
-  offline: "Offline — editing locally, will sync when reconnected",
-};
-
 // Callers must remount this component (e.g. `key={documentId}`) when
 // documentId changes — the local doc is created once per mount, not
 // re-derived from props, so a param change without a remount would keep
 // editing the previous document's Y.Doc.
 export function DocumentEditor({ documentId, title, role }: DocumentEditorProps) {
-  const [status, setStatus] = useState<ConnectionStatus>("connecting");
+  const [status, setStatus] = useState<Status>("syncing");
   const [doc] = useState(() => new Y.Doc());
 
   useEffect(() => {
@@ -56,13 +51,11 @@ export function DocumentEditor({ documentId, title, role }: DocumentEditorProps)
 
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Badge variant="secondary">{role}</Badge>
-          <span role="status" aria-live="polite" className="text-xs text-muted-foreground">
-            {STATUS_LABEL[status]}
-          </span>
+          <ConnectionStatus status={status} />
           <VersionHistory documentId={documentId} doc={doc} canWrite={role !== "viewer"} />
         </div>
       </div>

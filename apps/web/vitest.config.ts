@@ -1,6 +1,16 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      // Mirror the tsconfig "@/*" -> "src/*" path mapping so component tests
+      // (which render real components that import via "@/...") resolve the
+      // same way the Next build does. Production uses tsconfig paths; vitest
+      // doesn't read those, so it's declared once here.
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
   test: {
     environment: "node",
     setupFiles: ["./vitest.setup.ts"],
