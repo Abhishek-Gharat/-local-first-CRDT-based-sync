@@ -3,7 +3,7 @@ import { z } from "zod";
 import { sql, eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { withUserContext } from "@/db/with-user-context";
-import { documentMembers } from "@/db/schema";
+import { documentMembers, users } from "@/db/schema";
 import { requireDocumentRole, ForbiddenError } from "@/lib/rbac/require-document-role";
 
 const addMemberSchema = z.object({
@@ -37,8 +37,21 @@ export async function GET(_request: Request, { params }: RouteParams): Promise<R
     throw err;
   }
 
+  // joined with users so the share panel can show who a member *is* — the
+  // users_select_collaborators RLS policy exists precisely to allow reading
+  // the profile of anyone you share a document with.
   const members = await withUserContext(userId, (tx) =>
-    tx.select().from(documentMembers).where(eq(documentMembers.documentId, documentId)),
+    tx
+      .select({
+        id: documentMembers.id,
+        userId: documentMembers.userId,
+        role: documentMembers.role,
+        email: users.email,
+        name: users.name,
+      })
+      .from(documentMembers)
+      .innerJoin(users, eq(users.id, documentMembers.userId))
+      .where(eq(documentMembers.documentId, documentId)),
   );
 
   return NextResponse.json({ members });

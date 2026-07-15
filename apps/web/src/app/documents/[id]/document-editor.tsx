@@ -8,6 +8,7 @@ import { createSyncEngine, type ConnectionStatus as Status } from "@/lib/sync/sy
 import { CollaborativeEditor } from "@/components/editor/collaborative-editor";
 import { ConnectionStatus } from "@/components/editor/connection-status";
 import { VersionHistory } from "@/components/editor/version-history";
+import { SharePanel } from "@/components/editor/share-panel";
 import { Badge } from "@/components/ui/badge";
 
 interface DocumentEditorProps {
@@ -56,6 +57,9 @@ export function DocumentEditor({ documentId, title, role }: DocumentEditorProps)
         <div className="flex items-center gap-3">
           <Badge variant="secondary">{role}</Badge>
           <ConnectionStatus status={status} />
+          {/* members POST is owner-only server-side; don't render a share
+              surface that could only ever 403 for editors/viewers */}
+          {role === "owner" && <SharePanel documentId={documentId} />}
           <VersionHistory documentId={documentId} doc={doc} canWrite={role !== "viewer"} />
         </div>
       </div>
