@@ -197,18 +197,18 @@ export function VersionHistory({ documentId, doc, canWrite }: VersionHistoryProp
                 </div>
                 {summary && (
                   // The generated summary lands in a polite live region so a
-                  // screen-reader user hears it once it's ready, and the
-                  // AI-vs-fallback provenance is stated in the text rather
-                  // than implied — no fabricated authorship.
+                  // screen-reader user hears it once it's ready. Provenance is
+                  // part of the summary text itself: the fallback path already
+                  // says "AI summary unavailable" / "No textual changes", so
+                  // nothing extra is appended here (a bolted-on "(no AI
+                  // provider configured)" was wrong for the nothing-changed
+                  // case, where the AI is deliberately never called).
                   <p
                     role="status"
                     aria-live="polite"
                     className="rounded-md bg-muted/50 p-2 text-xs text-muted-foreground"
                   >
                     {summary.summary}
-                    {!summary.aiGenerated && (
-                      <span className="ml-1 italic">(no AI provider configured)</span>
-                    )}
                   </p>
                 )}
               </li>
