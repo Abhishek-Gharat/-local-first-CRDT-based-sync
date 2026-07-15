@@ -54,10 +54,13 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-12">
+    <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <h1 className="text-lg font-semibold tracking-tight">Create an account</h1>
+          <p className="text-sm text-muted-foreground">
+            Free, and your documents work offline from day one.
+          </p>
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>

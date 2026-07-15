@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import * as Y from "yjs";
+import { ArrowLeft } from "lucide-react";
 import type { DocumentRole } from "shared";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { createSyncEngine, type ConnectionStatus as Status } from "@/lib/sync/sync-engine";
@@ -52,21 +54,44 @@ export function DocumentEditor({ documentId, title, role }: DocumentEditorProps)
 
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-        <div className="flex items-center gap-3">
-          <Badge variant="secondary">{role}</Badge>
-          <ConnectionStatus status={status} />
-          {/* members POST is owner-only server-side; don't render a share
-              surface that could only ever 403 for editors/viewers */}
-          {role === "owner" && <SharePanel documentId={documentId} />}
-          <VersionHistory documentId={documentId} doc={doc} canWrite={role !== "viewer"} />
+      {/* document header: breadcrumb-ish back link + title, then status +
+          actions. Wraps cleanly at narrow widths instead of overflowing. */}
+      <header className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Link
+            href="/documents"
+            className="inline-flex items-center gap-1 rounded-md py-0.5 pr-1 transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            <ArrowLeft aria-hidden className="size-3.5" />
+            Documents
+          </Link>
         </div>
-      </div>
-      <div className="min-h-64 rounded-lg border border-border p-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl">{title}</h1>
+            <Badge variant="secondary" className="capitalize">
+              {role}
+            </Badge>
+          </div>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:gap-3">
+            <ConnectionStatus status={status} />
+            <span aria-hidden className="hidden h-4 w-px bg-border sm:block" />
+            {/* members POST is owner-only server-side; don't render a share
+                surface that could only ever 403 for editors/viewers */}
+            {role === "owner" && <SharePanel documentId={documentId} />}
+            <VersionHistory documentId={documentId} doc={doc} canWrite={role !== "viewer"} />
+          </div>
+        </div>
+      </header>
+
+      <div className="flex min-h-[60vh] flex-1 flex-col rounded-xl border border-border bg-card px-4 py-5 shadow-xs sm:px-8 sm:py-8">
         <CollaborativeEditor doc={doc} editable={role !== "viewer"} />
+        {role === "viewer" && (
+          <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+            You have view-only access — ask the owner for editor access to make changes.
+          </p>
+        )}
       </div>
     </div>
   );
 }
-

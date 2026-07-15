@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function NewDocumentForm() {
@@ -25,7 +26,8 @@ export function NewDocumentForm() {
   }
 
   return (
-    <Button onClick={handleCreate} disabled={creating} className="self-start">
+    <Button onClick={handleCreate} disabled={creating}>
+      <Plus aria-hidden />
       {creating ? "Creating…" : "New document"}
     </Button>
   );

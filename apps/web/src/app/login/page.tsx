@@ -35,10 +35,13 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-12">
+    <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <h1 className="text-lg font-semibold tracking-tight">Sign in</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Welcome back</h1>
+          <p className="text-sm text-muted-foreground">
+            Sign in to get back to your documents.
+          </p>
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>

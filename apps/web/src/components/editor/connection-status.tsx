@@ -8,31 +8,36 @@ interface ConnectionStatusProps {
 }
 
 // One row per possible status: the human-readable text (announced to screen
-// readers), a dot colour, and the aria-live politeness. "offline" is the only
-// one worth interrupting for (assertive) — it means edits aren't reaching
-// collaborators yet; everything else is incidental progress and announces
-// politely so it doesn't talk over the user while they type.
+// readers), a longer explanation surfaced as a tooltip, a dot colour, and the
+// aria-live politeness. "offline" is the only one worth interrupting for
+// (assertive) — it means edits aren't reaching collaborators yet; everything
+// else is incidental progress and announces politely so it doesn't talk over
+// the user while they type.
 const STATUS_META: Record<
   Status,
-  { label: string; dotClass: string; live: "polite" | "assertive" }
+  { label: string; detail: string; dotClass: string; live: "polite" | "assertive" }
 > = {
   online: {
-    label: "Connected — changes sync live",
+    label: "Connected",
+    detail: "Changes sync live to collaborators",
     dotClass: "bg-emerald-500",
     live: "polite",
   },
   syncing: {
-    label: "Syncing changes…",
+    label: "Syncing…",
+    detail: "Sending and receiving changes",
     dotClass: "bg-amber-500 animate-pulse",
     live: "polite",
   },
   "conflict-resolved": {
-    label: "Merged a collaborator's concurrent edits — no changes lost",
+    label: "Merged concurrent edits",
+    detail: "A collaborator's concurrent edits were merged — no changes lost",
     dotClass: "bg-sky-500",
     live: "polite",
   },
   offline: {
-    label: "Offline — editing locally, will sync when reconnected",
+    label: "Offline — will sync on reconnect",
+    detail: "Editing locally; changes are saved on this device and sync when reconnected",
     dotClass: "bg-muted-foreground",
     live: "assertive",
   },
@@ -52,10 +57,11 @@ export function ConnectionStatus({ status }: ConnectionStatusProps) {
       role="status"
       aria-live={meta.live}
       data-status={status}
-      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+      title={meta.detail}
+      className="inline-flex max-w-56 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground"
     >
       <span aria-hidden className={cn("size-2 shrink-0 rounded-full", meta.dotClass)} />
-      {meta.label}
+      <span className="truncate">{meta.label}</span>
     </span>
   );
 }

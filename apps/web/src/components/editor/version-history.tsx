@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import * as Y from "yjs";
+import { History, Sparkles } from "lucide-react";
 import { encodeSnapshot, decodeSnapshot } from "@/lib/history/codec";
 import { restoreSnapshotIntoDoc } from "@/lib/history/restore";
 import { Button } from "@/components/ui/button";
@@ -121,6 +122,7 @@ export function VersionHistory({ documentId, doc, canWrite }: VersionHistoryProp
         aria-expanded={false}
         aria-controls="version-history-panel"
       >
+        <History aria-hidden />
         History
       </Button>
     );
@@ -131,7 +133,7 @@ export function VersionHistory({ documentId, doc, canWrite }: VersionHistoryProp
       id="version-history-panel"
       aria-label="Version history"
       aria-busy={busy}
-      className="flex flex-col gap-2 rounded-lg border border-border p-3"
+      className="flex w-full flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-xs"
     >
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium">Version history</h2>
@@ -155,14 +157,17 @@ export function VersionHistory({ documentId, doc, canWrite }: VersionHistoryProp
         // in normal tab order, and the button's aria-label spells out *which*
         // version it restores, since the visible "Restore" text alone is
         // ambiguous when several rows are read in sequence.
-        <ol className="flex flex-col gap-1">
+        <ol className="flex flex-col">
           {versions.map((version) => {
             const when = new Date(version.createdAt);
             const display = version.label ?? when.toLocaleString();
             const summary = summaries[version.id];
             return (
-              <li key={version.id} className="flex flex-col gap-1 text-sm">
-                <div className="flex items-center justify-between gap-2">
+              <li
+                key={version.id}
+                className="flex flex-col gap-1 border-t border-border/60 py-2 text-sm first:border-t-0"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <time dateTime={when.toISOString()} className="text-muted-foreground">
                     {display}
                   </time>
@@ -174,6 +179,7 @@ export function VersionHistory({ documentId, doc, canWrite }: VersionHistoryProp
                       onClick={() => handleSummarize(version.id)}
                       aria-label={`Summarize changes since version from ${display}`}
                     >
+                      <Sparkles aria-hidden />
                       {summarizing === version.id ? "Summarizing…" : "Summarize changes"}
                     </Button>
                     {canWrite && (

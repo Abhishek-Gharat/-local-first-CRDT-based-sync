@@ -3,6 +3,7 @@
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
+import { Placeholder } from "@tiptap/extensions";
 import type * as Y from "yjs";
 
 interface CollaborativeEditorProps {
@@ -30,8 +31,11 @@ export function CollaborativeEditor({ doc, editable = true }: CollaborativeEdito
     extensions: [
       StarterKit.configure({ undoRedo: false }),
       Collaboration.configure({ document: doc }),
+      Placeholder.configure({
+        placeholder: editable ? "Start writing — changes save locally and sync live…" : "",
+      }),
     ],
   });
 
-  return <EditorContent editor={editor} />;
+  return <EditorContent editor={editor} className="flex flex-1 flex-col [&>div]:flex-1" />;
 }
