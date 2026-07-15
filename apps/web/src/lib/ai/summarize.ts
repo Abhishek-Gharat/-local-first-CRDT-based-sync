@@ -6,20 +6,22 @@ import { buildSummaryPrompt, fallbackSummary, type TextDiff } from "./text-diff"
 // optionally overrides the specific model id. The provider packages are
 // imported lazily inside resolveModel so an app deployed with, say, only an
 // Anthropic key never has to have the OpenAI SDK initialize.
-type Provider = "anthropic" | "openai";
+type Provider = "anthropic" | "openai" | "groq";
 
 const DEFAULT_MODELS: Record<Provider, string> = {
   anthropic: "claude-haiku-4-5-20251001",
   openai: "gpt-4o-mini",
+  groq: "llama-3.3-70b-versatile",
 };
 
 function configuredProvider(): Provider | null {
   const raw = process.env.AI_PROVIDER?.toLowerCase();
-  if (raw === "anthropic" || raw === "openai") return raw;
-  // Infer from whichever key is present so a bare ANTHROPIC_API_KEY / OPENAI_API_KEY
-  // works with no extra config.
+  if (raw === "anthropic" || raw === "openai" || raw === "groq") return raw;
+  // Infer from whichever key is present so a bare *_API_KEY works with no
+  // extra config.
   if (process.env.ANTHROPIC_API_KEY) return "anthropic";
   if (process.env.OPENAI_API_KEY) return "openai";
+  if (process.env.GROQ_API_KEY) return "groq";
   return null;
 }
 
@@ -28,6 +30,10 @@ async function resolveModel(provider: Provider): Promise<LanguageModel> {
   if (provider === "anthropic") {
     const { anthropic } = await import("@ai-sdk/anthropic");
     return anthropic(modelId);
+  }
+  if (provider === "groq") {
+    const { groq } = await import("@ai-sdk/groq");
+    return groq(modelId);
   }
   const { openai } = await import("@ai-sdk/openai");
   return openai(modelId);
