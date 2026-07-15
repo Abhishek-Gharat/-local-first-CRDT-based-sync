@@ -60,7 +60,10 @@ export function ConnectionStatus({ status }: ConnectionStatusProps) {
       title={meta.detail}
       className="inline-flex max-w-56 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground"
     >
-      <span aria-hidden className={cn("size-2 shrink-0 rounded-full", meta.dotClass)} />
+      <span
+        aria-hidden
+        className={cn("size-2 shrink-0 rounded-full transition-colors duration-300", meta.dotClass)}
+      />
       <span className="truncate">{meta.label}</span>
     </span>
   );

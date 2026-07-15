@@ -1,10 +1,11 @@
 "use client";
 
-import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
 import { Placeholder } from "@tiptap/extensions";
 import type * as Y from "yjs";
+import { EditorToolbar } from "@/components/editor/editor-toolbar";
 
 interface CollaborativeEditorProps {
   doc: Y.Doc;
@@ -15,6 +16,11 @@ interface CollaborativeEditorProps {
    * is set to, so a tampered client still can't actually mutate the doc.
    */
   editable?: boolean;
+}
+
+function countWords(text: string): number {
+  const matches = text.match(/\S+/g);
+  return matches ? matches.length : 0;
 }
 
 // undoRedo is disabled on StarterKit here on purpose: the Collaboration
@@ -28,6 +34,11 @@ export function CollaborativeEditor({ doc, editable = true }: CollaborativeEdito
     // hydration mismatch to guard against.
     immediatelyRender: true,
     editable,
+    editorProps: {
+      // red squiggles all over a collaborative doc read as errors; the
+      // browser's spellcheck adds noise, not value, in a shared canvas
+      attributes: { spellcheck: "false" },
+    },
     extensions: [
       StarterKit.configure({ undoRedo: false }),
       Collaboration.configure({ document: doc }),
@@ -37,5 +48,27 @@ export function CollaborativeEditor({ doc, editable = true }: CollaborativeEdito
     ],
   });
 
-  return <EditorContent editor={editor} className="flex flex-1 flex-col [&>div]:flex-1" />;
+  // live word/character count, recomputed per transaction via the selector
+  // (no full component re-render churn while typing)
+  const stats = useEditorState({
+    editor,
+    selector: ({ editor: e }) => {
+      if (!e) return { words: 0, chars: 0 };
+      const text = e.getText();
+      return { words: countWords(text), chars: text.length };
+    },
+  });
+
+  return (
+    <div className="flex flex-1 flex-col gap-3">
+      {editable && editor && <EditorToolbar editor={editor} />}
+      <EditorContent editor={editor} className="flex flex-1 flex-col [&>div]:flex-1" />
+      <p
+        aria-label="Document statistics"
+        className="border-t border-border/70 pt-2 text-right text-xs text-muted-foreground tabular-nums"
+      >
+        {stats?.words ?? 0} words · {stats?.chars ?? 0} characters
+      </p>
+    </div>
+  );
 }

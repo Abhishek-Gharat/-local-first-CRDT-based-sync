@@ -11,6 +11,7 @@ import { CollaborativeEditor } from "@/components/editor/collaborative-editor";
 import { ConnectionStatus } from "@/components/editor/connection-status";
 import { VersionHistory } from "@/components/editor/version-history";
 import { SharePanel } from "@/components/editor/share-panel";
+import { EditableTitle } from "@/components/editor/editable-title";
 import { Badge } from "@/components/ui/badge";
 
 interface DocumentEditorProps {
@@ -68,7 +69,11 @@ export function DocumentEditor({ documentId, title, role }: DocumentEditorProps)
         </div>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="flex min-w-0 items-center gap-2.5">
-            <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl">{title}</h1>
+            <EditableTitle
+              documentId={documentId}
+              initialTitle={title}
+              canRename={role !== "viewer"}
+            />
             <Badge variant="secondary" className="capitalize">
               {role}
             </Badge>
@@ -84,13 +89,15 @@ export function DocumentEditor({ documentId, title, role }: DocumentEditorProps)
         </div>
       </header>
 
-      <div className="flex min-h-[60vh] flex-1 flex-col rounded-xl border border-border bg-card px-4 py-5 shadow-xs sm:px-8 sm:py-8">
-        <CollaborativeEditor doc={doc} editable={role !== "viewer"} />
-        {role === "viewer" && (
-          <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
-            You have view-only access — ask the owner for editor access to make changes.
-          </p>
-        )}
+      <div className="flex min-h-[55vh] flex-1 flex-col rounded-xl border border-border bg-card px-4 py-5 shadow-xs sm:px-10 sm:py-8">
+        <div className="mx-auto flex w-full max-w-[72ch] flex-1 flex-col">
+          <CollaborativeEditor doc={doc} editable={role !== "viewer"} />
+          {role === "viewer" && (
+            <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+              You have view-only access — ask the owner for editor access to make changes.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

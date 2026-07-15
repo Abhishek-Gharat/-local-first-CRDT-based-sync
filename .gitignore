@@ -51,3 +51,5 @@ next-env.d.ts
 # session continuity doc for whoever (human or agent) picks this build back up
 PROGRESS.md
 
+
+.vercel
