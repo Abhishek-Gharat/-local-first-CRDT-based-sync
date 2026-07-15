@@ -15,6 +15,7 @@ import { SharePanel } from "@/components/editor/share-panel";
 import { EditableTitle } from "@/components/editor/editable-title";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { queueVersion, flushVersionQueue } from "@/lib/offline/version-queue";
 
 interface DocumentEditorProps {
   documentId: string;
@@ -38,23 +39,45 @@ async function fetchSyncToken(documentId: string): Promise<string> {
 export function DocumentEditor({ documentId, title, role }: DocumentEditorProps) {
   const [status, setStatus] = useState<Status>("syncing");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [doc] = useState(() => new Y.Doc());
   const historyRef = useRef<VersionHistoryHandle>(null);
 
   const handleSaveVersion = useCallback(async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       const snapshot = encodeSnapshot(Y.encodeStateAsUpdate(doc));
-      await fetch(`/api/documents/${documentId}/versions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ snapshot }),
-      });
-      await historyRef.current?.refresh();
+
+      if (navigator.onLine) {
+        const response = await fetch(`/api/documents/${documentId}/versions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ snapshot }),
+        });
+        if (!response.ok) throw new Error(`save failed: ${response.status}`);
+        await historyRef.current?.refresh();
+      } else {
+        await queueVersion(documentId, snapshot);
+        setSaveError("Saved locally — will sync when back online.");
+      }
+    } catch {
+      setSaveError("Failed to save version. Try again.");
     } finally {
       setSaving(false);
     }
   }, [doc, documentId]);
+
+  // Flush queued versions when coming back online
+  useEffect(() => {
+    function onOnline() {
+      flushVersionQueue(documentId).then(() => {
+        historyRef.current?.refresh();
+      });
+    }
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [documentId]);
 
   useEffect(() => {
     const persistence = new IndexeddbPersistence(`docsync:${documentId}`, doc);
@@ -104,9 +127,14 @@ export function DocumentEditor({ documentId, title, role }: DocumentEditorProps)
                 surface that could only ever 403 for editors/viewers */}
             {role === "owner" && <SharePanel documentId={documentId} />}
             {role !== "viewer" && (
-              <Button variant="outline" size="sm" onClick={handleSaveVersion} disabled={saving}>
-                Save version
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleSaveVersion} disabled={saving}>
+                  {saving ? "Saving…" : "Save version"}
+                </Button>
+                {saveError && (
+                  <span className="max-w-48 text-xs text-muted-foreground">{saveError}</span>
+                )}
+              </div>
             )}
             <VersionHistory
               ref={historyRef}

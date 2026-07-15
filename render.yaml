@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: docsync-sync-server
+    runtime: docker
+    dockerfilePath: ./apps/sync-server/Dockerfile
+    plan: free
+    envVars:
+      - key: SYNC_TOKEN_SECRET
+        generateValue: true
