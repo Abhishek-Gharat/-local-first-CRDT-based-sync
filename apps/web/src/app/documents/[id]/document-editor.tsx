@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import * as Y from "yjs";
 import { ArrowLeft } from "lucide-react";
 import type { DocumentRole } from "shared";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { createSyncEngine, type ConnectionStatus as Status } from "@/lib/sync/sync-engine";
+import { encodeSnapshot } from "@/lib/history/codec";
 import { CollaborativeEditor } from "@/components/editor/collaborative-editor";
 import { ConnectionStatus } from "@/components/editor/connection-status";
-import { VersionHistory } from "@/components/editor/version-history";
+import { VersionHistory, type VersionHistoryHandle } from "@/components/editor/version-history";
 import { SharePanel } from "@/components/editor/share-panel";
 import { EditableTitle } from "@/components/editor/editable-title";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 interface DocumentEditorProps {
@@ -35,7 +37,24 @@ async function fetchSyncToken(documentId: string): Promise<string> {
 // editing the previous document's Y.Doc.
 export function DocumentEditor({ documentId, title, role }: DocumentEditorProps) {
   const [status, setStatus] = useState<Status>("syncing");
+  const [saving, setSaving] = useState(false);
   const [doc] = useState(() => new Y.Doc());
+  const historyRef = useRef<VersionHistoryHandle>(null);
+
+  const handleSaveVersion = useCallback(async () => {
+    setSaving(true);
+    try {
+      const snapshot = encodeSnapshot(Y.encodeStateAsUpdate(doc));
+      await fetch(`/api/documents/${documentId}/versions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ snapshot }),
+      });
+      await historyRef.current?.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }, [doc, documentId]);
 
   useEffect(() => {
     const persistence = new IndexeddbPersistence(`docsync:${documentId}`, doc);
@@ -84,7 +103,17 @@ export function DocumentEditor({ documentId, title, role }: DocumentEditorProps)
             {/* members POST is owner-only server-side; don't render a share
                 surface that could only ever 403 for editors/viewers */}
             {role === "owner" && <SharePanel documentId={documentId} />}
-            <VersionHistory documentId={documentId} doc={doc} canWrite={role !== "viewer"} />
+            {role !== "viewer" && (
+              <Button variant="outline" size="sm" onClick={handleSaveVersion} disabled={saving}>
+                Save version
+              </Button>
+            )}
+            <VersionHistory
+              ref={historyRef}
+              documentId={documentId}
+              doc={doc}
+              canWrite={role !== "viewer"}
+            />
           </div>
         </div>
       </header>
