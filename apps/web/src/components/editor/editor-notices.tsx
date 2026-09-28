@@ -8,12 +8,11 @@ import { StatusDot } from "@/components/ui/status-dot";
 import { cn } from "@/lib/utils";
 
 /**
- * Full-width network banner.
+ * Fixed corner network status pill / button.
  *
- * Only rendered for states the user must act on or would otherwise be
- * surprised by — offline, reconnecting, or a concurrent-edit merge. "Online"
- * is deliberately silent: a permanent green banner teaches people to ignore
- * banners, which is exactly when an offline notice stops working.
+ * Rendered with `fixed bottom-10 right-4 z-40` so it NEVER shifts the
+ * document canvas, layout height, or causes layout jumps during network
+ * transitions (offline, reconnecting, syncing).
  */
 export function NetworkBanner({
   status,
@@ -24,52 +23,56 @@ export function NetworkBanner({
   offline: boolean;
   onRetry?: () => void;
 }) {
-  if (!offline && status !== "syncing" && status !== "conflict-resolved") {
+  const [dismissedConflict, setDismissedConflict] = useState(false);
+
+  useEffect(() => {
+    if (status === "conflict-resolved") {
+      setDismissedConflict(false);
+      const timer = window.setTimeout(() => setDismissedConflict(true), 5000);
+      return () => window.clearTimeout(timer);
+    }
+  }, [status]);
+
+  if (!offline && status !== "syncing" && (status !== "conflict-resolved" || dismissedConflict)) {
     return null;
-  }
-
-  if (offline) {
-    return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border bg-muted px-4 py-2 text-xs sm:px-6"
-      >
-        <CloudOff aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-        <p className="min-w-0 flex-1 text-muted-foreground">
-          <span className="font-medium text-foreground">You are offline.</span>{" "}
-          Keep writing — every change is stored in this browser and will sync
-          the moment the connection returns.
-        </p>
-        {onRetry && (
-          <Button variant="outline" size="xs" onClick={onRetry} className="font-medium">
-            Retry now
-          </Button>
-        )}
-      </div>
-    );
-  }
-
-  if (status === "syncing") {
-    return (
-      <div
-        aria-live="polite"
-        className="flex items-center gap-2 border-b border-warning/25 bg-warning/10 px-4 py-1.5 text-[11px] font-medium text-foreground sm:px-6"
-      >
-        <StatusDot status="syncing" />
-        Reconciling local and remote state…
-      </div>
-    );
   }
 
   return (
     <div
+      role="status"
       aria-live="polite"
-      className="flex items-center gap-2 border-b border-info/25 bg-info/10 px-4 py-1.5 text-[11px] text-foreground sm:px-6"
+      className="fixed bottom-10 right-4 z-40 flex max-w-sm items-center gap-2 rounded-full border border-border/80 bg-background/95 px-3 py-1.5 text-xs text-foreground shadow-lg backdrop-blur-md transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 sm:right-6"
     >
-      <Radio aria-hidden className="size-3.5 shrink-0 text-info" />
-      Concurrent edits from a collaborator were merged automatically — nothing
-      was overwritten.
+      {offline ? (
+        <>
+          <CloudOff aria-hidden className="size-3.5 shrink-0 text-warning" />
+          <span className="font-medium text-foreground">Offline — saving locally</span>
+          {onRetry && (
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={onRetry}
+              className="ml-1 h-5.5 rounded-full px-2 text-[11px] font-medium"
+            >
+              Retry
+            </Button>
+          )}
+        </>
+      ) : status === "syncing" ? (
+        <>
+          <Loader2 aria-hidden className="size-3.5 shrink-0 animate-spin text-primary" />
+          <span className="font-medium text-muted-foreground">
+            Reconnecting & syncing…
+          </span>
+        </>
+      ) : (
+        <>
+          <Radio aria-hidden className="size-3.5 shrink-0 text-info" />
+          <span className="truncate text-muted-foreground">
+            Concurrent edits merged
+          </span>
+        </>
+      )}
     </div>
   );
 }
