@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
-import { Check, ClipboardCopy, Code, FileDown } from "lucide-react";
+import { Check, ClipboardCopy, Code, FileDown, Printer } from "lucide-react";
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -139,6 +139,12 @@ export function ExportMenu({ documentTitle, editor }: ExportMenuProps) {
     }
   }, [editor, toMarkdown, flash, fail]);
 
+  const handlePrintPdf = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.print();
+    }
+  }, []);
+
   const disabled = !editor;
 
   return (
@@ -215,6 +221,20 @@ export function ExportMenu({ documentTitle, editor }: ExportMenuProps) {
             )}
           >
             {feedback === "copy" ? "copied" : ".md"}
+          </span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={handlePrintPdf}
+          disabled={disabled}
+          className="justify-between gap-4"
+        >
+          <span className="flex items-center gap-1.5">
+            <Printer aria-hidden className="size-3.5" />
+            Print / Export as PDF
+          </span>
+          <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+            .pdf
           </span>
         </DropdownMenuItem>
 

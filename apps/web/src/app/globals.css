@@ -597,3 +597,128 @@
     animation: none !important;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Syntax Highlighting (Lowlight / Highlight.js)
+ * ------------------------------------------------------------------ */
+.hljs-comment,
+.hljs-quote {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: oklch(0.55 0.22 290);
+  font-weight: 600;
+}
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-subst {
+  color: oklch(0.75 0.18 290);
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag .hljs-attr {
+  color: oklch(0.65 0.18 45);
+}
+.dark .hljs-number,
+.dark .hljs-literal,
+.dark .hljs-variable,
+.dark .hljs-template-variable,
+.dark .hljs-tag .hljs-attr {
+  color: oklch(0.8 0.16 55);
+}
+
+.hljs-string,
+.hljs-doctag {
+  color: oklch(0.55 0.18 145);
+}
+.dark .hljs-string,
+.dark .hljs-doctag {
+  color: oklch(0.75 0.16 145);
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-selector-id {
+  color: oklch(0.55 0.2 240);
+  font-weight: 600;
+}
+.dark .hljs-title,
+.dark .hljs-section,
+.dark .hljs-selector-id {
+  color: oklch(0.75 0.18 240);
+}
+
+.hljs-type,
+.hljs-class .hljs-title {
+  color: oklch(0.58 0.18 330);
+  font-weight: 600;
+}
+.dark .hljs-type,
+.dark .hljs-class .hljs-title {
+  color: oklch(0.78 0.16 330);
+}
+
+.hljs-attr,
+.hljs-attribute {
+  color: oklch(0.6 0.16 200);
+}
+.dark .hljs-attr,
+.dark .hljs-attribute {
+  color: oklch(0.75 0.14 200);
+}
+
+.hljs-punctuation {
+  color: var(--muted-foreground);
+}
+
+/* ------------------------------------------------------------------ *
+ * Print / Export as PDF
+ * ------------------------------------------------------------------ */
+@media print {
+  header,
+  footer,
+  aside,
+  nav,
+  .sticky,
+  [role="toolbar"],
+  [role="status"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="popover-content"],
+  .code-block-wrapper [contenteditable="false"],
+  button {
+    display: none !important;
+  }
+
+  body, html {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt !important;
+    line-height: 1.5 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .ProseMirror {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .ProseMirror a {
+    color: #111 !important;
+    text-decoration: underline !important;
+  }
+
+  .code-block-wrapper {
+    border: 1px solid #ddd !important;
+    background: #fbfbfb !important;
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+}

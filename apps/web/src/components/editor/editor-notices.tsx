@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { CloudOff, Eye, Loader2, Radio } from "lucide-react";
 import type { ConnectionStatus as Status } from "@/lib/sync/sync-engine";
 import { Button } from "@/components/ui/button";
-import { StatusDot } from "@/components/ui/status-dot";
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,10 +23,17 @@ export function NetworkBanner({
   onRetry?: () => void;
 }) {
   const [dismissedConflict, setDismissedConflict] = useState(false);
+  const [prevStatus, setPrevStatus] = useState(status);
+
+  if (status !== prevStatus) {
+    setPrevStatus(status);
+    if (status === "conflict-resolved") {
+      setDismissedConflict(false);
+    }
+  }
 
   useEffect(() => {
     if (status === "conflict-resolved") {
-      setDismissedConflict(false);
       const timer = window.setTimeout(() => setDismissedConflict(true), 5000);
       return () => window.clearTimeout(timer);
     }

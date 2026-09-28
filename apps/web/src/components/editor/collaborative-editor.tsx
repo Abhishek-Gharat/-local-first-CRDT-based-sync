@@ -16,6 +16,10 @@ import { FindReplace } from "@/components/editor/find-replace/find-replace-exten
 import { FindReplaceBar } from "@/components/editor/find-replace/find-replace-bar";
 import { TaskList } from "@tiptap/extension-task-list";
 import { TaskItem } from "@tiptap/extension-task-item";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { ReactNodeViewRenderer } from "@tiptap/react";
+import { lowlight } from "@/lib/editor/lowlight";
+import { CodeBlockComponent } from "@/components/editor/code-block-view";
 import { requestLinkPopover } from "@/components/editor/link-popover-bridge";
 import { cn } from "@/lib/utils";
 
@@ -118,6 +122,7 @@ export function CollaborativeEditor({
     extensions: [
       StarterKit.configure({
         undoRedo: false,
+        codeBlock: false,
         link: {
           openOnClick: false,
           defaultProtocol: "https",
@@ -128,6 +133,11 @@ export function CollaborativeEditor({
           },
         },
       }),
+      CodeBlockLowlight.extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(CodeBlockComponent);
+        },
+      }).configure({ lowlight }),
       // Installed after StarterKit so the keymap wins over the list keymap for
       // the combinations it claims (e.g. Mod-Shift-7/8/9).
       EditorKeyboardShortcuts,
