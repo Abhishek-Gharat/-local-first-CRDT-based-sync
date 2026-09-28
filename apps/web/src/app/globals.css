@@ -601,6 +601,62 @@
 /* ------------------------------------------------------------------ *
  * Syntax Highlighting (Lowlight / Highlight.js)
  * ------------------------------------------------------------------ */
+.code-block-wrapper pre {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+
+.code-block-wrapper .hljs-comment,
+.code-block-wrapper .hljs-quote {
+  color: #71717a;
+  font-style: italic;
+}
+
+.code-block-wrapper .hljs-keyword,
+.code-block-wrapper .hljs-selector-tag,
+.code-block-wrapper .hljs-subst {
+  color: #c084fc;
+  font-weight: 600;
+}
+
+.code-block-wrapper .hljs-number,
+.code-block-wrapper .hljs-literal,
+.code-block-wrapper .hljs-variable,
+.code-block-wrapper .hljs-template-variable,
+.code-block-wrapper .hljs-tag .hljs-attr {
+  color: #fb923c;
+}
+
+.code-block-wrapper .hljs-string,
+.code-block-wrapper .hljs-doctag {
+  color: #4ade80;
+}
+
+.code-block-wrapper .hljs-title,
+.code-block-wrapper .hljs-section,
+.code-block-wrapper .hljs-selector-id {
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.code-block-wrapper .hljs-type,
+.code-block-wrapper .hljs-class .hljs-title {
+  color: #f472b6;
+  font-weight: 600;
+}
+
+.code-block-wrapper .hljs-attr,
+.code-block-wrapper .hljs-attribute {
+  color: #38bdf8;
+}
+
+.code-block-wrapper .hljs-punctuation {
+  color: #94a3b8;
+}
+
 .hljs-comment,
 .hljs-quote {
   color: var(--muted-foreground);

@@ -13,12 +13,12 @@ import {
   List,
   ListOrdered,
   TextQuote,
-  SquareCode,
   CheckSquare,
   Minus,
   Pilcrow,
   MoreHorizontal,
   ChevronDown,
+  Terminal,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -50,6 +50,7 @@ interface BlockItem {
   icon: LucideIcon;
   isActive: (editor: Editor) => boolean;
   run: (editor: Editor) => void;
+  shortcut?: string[];
 }
 
 /**
@@ -113,6 +114,7 @@ const BLOCKS: BlockItem[] = [
     icon: Heading1,
     isActive: (e) => e.isActive("heading", { level: 1 }),
     run: (e) => e.chain().focus().toggleHeading({ level: 1 }).run(),
+    shortcut: ["#"],
   },
   {
     label: "Heading 2",
@@ -120,6 +122,7 @@ const BLOCKS: BlockItem[] = [
     icon: Heading2,
     isActive: (e) => e.isActive("heading", { level: 2 }),
     run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run(),
+    shortcut: ["##"],
   },
   {
     label: "Heading 3",
@@ -127,6 +130,7 @@ const BLOCKS: BlockItem[] = [
     icon: Heading3,
     isActive: (e) => e.isActive("heading", { level: 3 }),
     run: (e) => e.chain().focus().toggleHeading({ level: 3 }).run(),
+    shortcut: ["###"],
   },
   {
     label: "Bullet list",
@@ -134,6 +138,7 @@ const BLOCKS: BlockItem[] = [
     icon: List,
     isActive: (e) => e.isActive("bulletList"),
     run: (e) => e.chain().focus().toggleBulletList().run(),
+    shortcut: ["-"],
   },
   {
     label: "Numbered list",
@@ -141,6 +146,7 @@ const BLOCKS: BlockItem[] = [
     icon: ListOrdered,
     isActive: (e) => e.isActive("orderedList"),
     run: (e) => e.chain().focus().toggleOrderedList().run(),
+    shortcut: ["1."],
   },
   {
     label: "Blockquote",
@@ -148,13 +154,15 @@ const BLOCKS: BlockItem[] = [
     icon: TextQuote,
     isActive: (e) => e.isActive("blockquote"),
     run: (e) => e.chain().focus().toggleBlockquote().run(),
+    shortcut: [">"],
   },
   {
     label: "Code block",
-    description: "Preformatted code",
-    icon: SquareCode,
+    description: "Syntax-highlighted terminal",
+    icon: Terminal,
     isActive: (e) => e.isActive("codeBlock"),
     run: (e) => e.chain().focus().toggleCodeBlock().run(),
+    shortcut: ["```"],
   },
   {
     label: "Divider",
@@ -162,13 +170,15 @@ const BLOCKS: BlockItem[] = [
     icon: Minus,
     isActive: () => false,
     run: (e) => e.chain().focus().setHorizontalRule().run(),
+    shortcut: ["---"],
   },
   {
     label: "Task list",
-    description: "Checklist with checkable items",
+    description: "Interactive checklist",
     icon: CheckSquare,
     isActive: (e) => e.isActive("taskList"),
     run: (e) => e.chain().focus().toggleTaskList().run(),
+    shortcut: ["[]"],
   },
 ];
 
@@ -242,7 +252,14 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
                   )}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-medium">{block.label}</span>
+                  <span className="flex items-center justify-between gap-1">
+                    <span className="block text-xs font-medium">{block.label}</span>
+                    {block.shortcut && (
+                      <kbd className="rounded border border-border/70 bg-muted/80 px-1 font-mono text-[9px] text-muted-foreground">
+                        {block.shortcut.join("")}
+                      </kbd>
+                    )}
+                  </span>
                   <span className="block text-[10px] text-muted-foreground">
                     {block.description}
                   </span>
@@ -327,6 +344,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
               <TooltipButton
                 key={block.label}
                 label={block.label}
+                shortcut={block.shortcut}
                 aria-pressed={activeBlocks[index] ?? false}
                 onClick={() => block.run(editor)}
                 className={cn(

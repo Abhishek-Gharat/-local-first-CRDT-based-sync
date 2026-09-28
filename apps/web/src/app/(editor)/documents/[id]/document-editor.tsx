@@ -277,15 +277,13 @@ export function DocumentEditor({
       <NetworkBanner status={status} offline={offline} />
 
       {/* ── Writing canvas ────────────────────────────────────────────
-          A single measured column of "paper" on a recessed surface. The
-          document identity, its metadata rail and the editing surface live
-          in one centred column, so the eye has one column to track instead
-          of a bordered card floating inside a bordered page. */}
-      <div className="flex-1 bg-muted/25">
-        <div className="mx-auto w-full max-w-4xl px-3 py-5 sm:px-6 sm:py-8">
-          <div className="rounded-2xl border border-border bg-canvas px-4 py-6 shadow-sm sm:px-10 sm:py-9">
+          A generous, elegant document paper canvas filling the vertical viewport
+          with balanced proportions, smooth breathing margins, and comfortable reading width. */}
+      <div className="flex-1 bg-muted/20">
+        <div className="mx-auto flex min-h-[calc(100vh-8.5rem)] w-full max-w-5xl flex-col px-3 py-4 sm:px-6 sm:py-6">
+          <div className="flex flex-1 flex-col rounded-2xl border border-border/80 bg-canvas px-6 py-8 shadow-sm transition-all sm:px-12 sm:py-10 md:px-16 md:py-12">
             {/* Document identity */}
-            <div className="border-b border-border pb-4">
+            <div className="mb-2 border-b border-border/50 pb-5">
               <EditableTitle
                 documentId={documentId}
                 initialTitle={title}

@@ -9,7 +9,7 @@ import { Extension } from "@tiptap/core";
 import { yCursorPlugin } from "@tiptap/y-tiptap";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
-import { Bold, Italic, Strikethrough, Code } from "lucide-react";
+import { Bold, Italic, Strikethrough, Code, Terminal } from "lucide-react";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { EditorKeyboardShortcuts } from "@/components/editor/editor-keyboard-shortcuts";
 import { FindReplace } from "@/components/editor/find-replace/find-replace-extension";
@@ -257,7 +257,7 @@ export function CollaborativeEditor({
     editor,
     selector: ({ editor: e }) => {
       if (!e || e.isDestroyed || !e.state?.doc) {
-        return { bold: false, italic: false, strike: false, code: false };
+        return { bold: false, italic: false, strike: false, code: false, codeBlock: false };
       }
       try {
         return {
@@ -265,9 +265,10 @@ export function CollaborativeEditor({
           italic: e.isActive("italic") ?? false,
           strike: e.isActive("strike") ?? false,
           code: e.isActive("code") ?? false,
+          codeBlock: e.isActive("codeBlock") ?? false,
         };
       } catch {
-        return { bold: false, italic: false, strike: false, code: false };
+        return { bold: false, italic: false, strike: false, code: false, codeBlock: false };
       }
     },
   });
@@ -281,7 +282,7 @@ export function CollaborativeEditor({
 
       <EditorContent
         editor={editor}
-        className="flex flex-1 flex-col pt-5 [&>div]:flex-1"
+        className="flex flex-1 flex-col pt-5 pb-32 sm:pb-48 [&>div]:flex-1"
       />
 
       {/* Contextual selection toolbar */}
@@ -317,6 +318,12 @@ export function CollaborativeEditor({
                 icon: Code,
                 active: selectionMarks?.code,
                 run: () => editor.chain().focus().toggleCode().run(),
+              },
+              {
+                label: "Code block",
+                icon: Terminal,
+                active: selectionMarks?.codeBlock,
+                run: () => editor.chain().focus().toggleCodeBlock().run(),
               },
             ] as const
           ).map((item) => (
