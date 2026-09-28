@@ -19,6 +19,7 @@ import {
   MoreHorizontal,
   ChevronDown,
   Terminal,
+  Lightbulb,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -163,6 +164,14 @@ const BLOCKS: BlockItem[] = [
     isActive: (e) => e.isActive("codeBlock"),
     run: (e) => e.chain().focus().toggleCodeBlock().run(),
     shortcut: ["```"],
+  },
+  {
+    label: "Callout box",
+    description: "Tinted note or warning",
+    icon: Lightbulb,
+    isActive: (e) => e.isActive("callout"),
+    run: (e) => e.chain().focus().toggleCallout().run(),
+    shortcut: ["note"],
   },
   {
     label: "Divider",

@@ -9,7 +9,7 @@ import { Extension } from "@tiptap/core";
 import { yCursorPlugin } from "@tiptap/y-tiptap";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
-import { Bold, Italic, Strikethrough, Code, Terminal } from "lucide-react";
+import { Bold, Italic, Strikethrough, Code, Terminal, Lightbulb } from "lucide-react";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { EditorKeyboardShortcuts } from "@/components/editor/editor-keyboard-shortcuts";
 import { FindReplace } from "@/components/editor/find-replace/find-replace-extension";
@@ -21,6 +21,8 @@ import { ReactNodeViewRenderer } from "@tiptap/react";
 import { lowlight } from "@/lib/editor/lowlight";
 import { CodeBlockComponent } from "@/components/editor/code-block-view";
 import { requestLinkPopover } from "@/components/editor/link-popover-bridge";
+import { Callout } from "@/lib/editor/callout-extension";
+import { SlashCommand } from "@/lib/editor/slash-command-extension";
 import { cn } from "@/lib/utils";
 
 const CollaborationCursor = Extension.create<{ awareness: Awareness }>({
@@ -153,10 +155,12 @@ export function CollaborativeEditor({
       // transaction that syncs to every collaborator without special handling.
       TaskList,
       TaskItem.configure({ nested: true }),
+      Callout,
+      ...(editable ? [SlashCommand] : []),
       Collaboration.configure({ document: doc }),
       ...(awareness ? [CollaborationCursor.configure({ awareness })] : []),
       Placeholder.configure({
-        placeholder: editable ? "Start writing — changes save locally and sync live…" : "",
+        placeholder: editable ? "Type '/' for commands or start writing…" : "",
       }),
     ],
   });
@@ -324,6 +328,12 @@ export function CollaborativeEditor({
                 icon: Terminal,
                 active: selectionMarks?.codeBlock,
                 run: () => editor.chain().focus().toggleCodeBlock().run(),
+              },
+              {
+                label: "Callout box",
+                icon: Lightbulb,
+                active: editor.isActive("callout"),
+                run: () => editor.chain().focus().toggleCallout().run(),
               },
             ] as const
           ).map((item) => (
