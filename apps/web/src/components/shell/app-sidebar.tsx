@@ -52,7 +52,7 @@ export function AppSidebar({
     <nav aria-label="Workspace" className="flex flex-col gap-6 py-4">
       {nav.map((section) => (
         <div key={section.title} className="flex flex-col gap-0.5">
-          <p className="px-2.5 pb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground/80 uppercase">
+          <p className="px-3 pb-1.5 text-xs font-semibold tracking-wider text-muted-foreground/90 uppercase">
             {section.title}
           </p>
           {section.items.map((item) => {
@@ -67,10 +67,10 @@ export function AppSidebar({
                 onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium transition-colors",
+                  "group relative flex h-9 items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors",
                   "focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
                     : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                 )}
               >
@@ -86,7 +86,7 @@ export function AppSidebar({
                 <Icon
                   aria-hidden
                   className={cn(
-                    "size-4 shrink-0 transition-colors",
+                    "size-4.5 shrink-0 transition-colors",
                     active
                       ? "text-primary"
                       : "text-muted-foreground/80 group-hover:text-foreground",
@@ -96,7 +96,7 @@ export function AppSidebar({
                 {item.count !== undefined && item.count > 0 && (
                   <span
                     className={cn(
-                      "rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+                      "rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
                       active
                         ? "bg-primary/12 text-primary"
                         : "bg-muted text-muted-foreground",

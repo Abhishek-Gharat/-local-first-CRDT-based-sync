@@ -40,6 +40,7 @@ import { ColorPickerPopover } from "@/components/editor/color-picker-popover";
 
 interface EditorToolbarProps {
   editor: Editor;
+  className?: string;
 }
 
 interface MarkItem {
@@ -63,20 +64,11 @@ interface BlockItem {
  * Structured formatting toolbar.
  *
  * Three concerns, three groups, in the order writers reach for them:
- *   1. block type — a single labelled control that reports the *current*
- *      block, instead of three independent heading toggles the user has to
- *      decode and pick between;
- *   2. inline marks — the four things you apply to a word;
- *   3. structure — block-level insertions that are less frequent.
- *
- * Below `md` the structure group is not hidden-and-clipped, it is *moved*
- * into an overflow menu, so a phone gets a toolbar that fits rather than one
- * that wraps onto three ragged rows.
+ *   1. history — undo/redo;
+ *   2. block type — a single labelled control that reports the current block;
+ *   3. inline marks — the formatting applied to words;
+ *   4. structure — block-level insertions (lists, tables, code).
  */
-
-// Grouped the way editors conventionally group them: inline marks, block
-// types, then structure. Every action goes through the same chain()->focus()
-// so the selection never gets lost to a toolbar click.
 const MARKS: MarkItem[] = [
   {
     label: "Bold",
@@ -209,9 +201,9 @@ const BLOCKS: BlockItem[] = [
   },
 ];
 
-export function EditorToolbar({ editor }: EditorToolbarProps) {
+export function EditorToolbar({ editor, className }: EditorToolbarProps) {
   const isMac = useIsMac();
-  const compact = useMediaQuery("(max-width: 767px)");
+  const compact = useMediaQuery("(max-width: 960px)");
 
   // one boolean per item, recomputed only when the editor state changes
   const activeStates = useEditorState({
@@ -239,157 +231,93 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       role="toolbar"
       aria-label="Text formatting"
       aria-orientation="horizontal"
-      className="sticky top-14 z-20 flex items-center gap-1 rounded-xl border border-border bg-card/90 p-1 shadow-sm backdrop-blur-md transition-colors supports-[backdrop-filter]:bg-card/75"
+      className={cn(
+        "flex w-full items-center justify-between gap-1 overflow-x-auto py-0.5 no-scrollbar",
+        className,
+      )}
     >
-      {/* ── History (Undo / Redo) ── */}
-      <div className="flex items-center gap-0.5">
-        <TooltipButton
-          label="Undo"
-          shortcut={isMac ? ["⌘", "Z"] : ["Ctrl", "Z"]}
-          disabled={!canUndo}
-          onClick={() => editor.chain().focus().undo().run()}
-          aria-label="Undo"
-          className="size-7"
-        >
-          <Undo2 aria-hidden className="size-3.5" />
-        </TooltipButton>
-
-        <TooltipButton
-          label="Redo"
-          shortcut={isMac ? ["⌘", "⇧", "Z"] : ["Ctrl", "Y"]}
-          disabled={!canRedo}
-          onClick={() => editor.chain().focus().redo().run()}
-          aria-label="Redo"
-          className="size-7"
-        >
-          <Redo2 aria-hidden className="size-3.5" />
-        </TooltipButton>
-      </div>
-
-      <ToolbarDivider />
-
-      {/* ── Block type: reports the current block, changes the next one ── */}
-      <Popover>
-        <PopoverTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="sm"
-              className="min-w-0 gap-1.5 px-2 font-medium text-foreground"
-              aria-label={`Block type: ${currentBlock.label}`}
-            />
-          }
-        >
-          <ActiveBlockIcon aria-hidden className="size-3.5 shrink-0 text-primary" />
-          <span className={cn("truncate", compact && "sr-only sm:not-sr-only")}>
-            {currentBlock.label}
-          </span>
-          <ChevronDown aria-hidden className="size-3 shrink-0 opacity-60" />
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-56 p-1">
-          <p className="px-2 pt-1 pb-1.5 text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-            Turn into
-          </p>
-          {BLOCKS.map((block, index) => {
-            const Icon = block.icon;
-            return (
-              <button
-                key={block.label}
-                type="button"
-                onClick={() => block.run(editor)}
-                aria-pressed={activeBlocks[index] ?? false}
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
-                  activeBlocks[index] && "bg-accent text-accent-foreground",
-                )}
-              >
-                <Icon
-                  aria-hidden
-                  className={cn(
-                    "size-3.5 shrink-0",
-                    activeBlocks[index] ? "text-primary" : "text-muted-foreground",
-                  )}
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between gap-1">
-                    <span className="block text-xs font-medium">{block.label}</span>
-                    {block.shortcut && (
-                      <kbd className="rounded border border-border/70 bg-muted/80 px-1 font-mono text-[9px] text-muted-foreground">
-                        {block.shortcut.join("")}
-                      </kbd>
-                    )}
-                  </span>
-                  <span className="block text-[10px] text-muted-foreground">
-                    {block.description}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </PopoverContent>
-      </Popover>
-
-      <ToolbarDivider />
-
-      {/* ── Inline marks ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-0.5">
-        {MARKS.map((mark, index) => (
+      <div className="flex items-center gap-1">
+        {/* ── History (Undo / Redo) ── */}
+        <div className="flex items-center gap-0.5">
           <TooltipButton
-            key={mark.label}
-            label={mark.label}
-            shortcut={mark.shortcut}
-            aria-pressed={activeMarks[index] ?? false}
-            onClick={() => mark.run(editor)}
-            className={cn(
-              "size-7",
-              activeMarks[index] &&
-                "bg-primary/12 text-primary hover:bg-primary/16 hover:text-primary",
-            )}
+            label="Undo"
+            shortcut={isMac ? ["⌘", "Z"] : ["Ctrl", "Z"]}
+            disabled={!canUndo}
+            onClick={() => editor.chain().focus().undo().run()}
+            aria-label="Undo"
+            size="icon"
+            className="size-8 sm:size-8.5 rounded-lg text-foreground/80 hover:text-foreground"
           >
-            <mark.icon aria-hidden className="size-3.5" />
+            <Undo2 aria-hidden className="size-4" />
           </TooltipButton>
-        ))}
 
-        {/* Link brings its own trigger, because opening it is a stateful
-            operation (add vs. edit vs. view) rather than a single command —
-            and it is the same popover ⌘K opens. */}
-        <LinkPopover editor={editor} />
+          <TooltipButton
+            label="Redo"
+            shortcut={isMac ? ["⌘", "⇧", "Z"] : ["Ctrl", "Y"]}
+            disabled={!canRedo}
+            onClick={() => editor.chain().focus().redo().run()}
+            aria-label="Redo"
+            size="icon"
+            className="size-8 sm:size-8.5 rounded-lg text-foreground/80 hover:text-foreground"
+          >
+            <Redo2 aria-hidden className="size-4" />
+          </TooltipButton>
+        </div>
 
-        {/* Text color and background highlighter picker */}
-        <ColorPickerPopover editor={editor} />
-      </div>
+        <ToolbarDivider />
 
-      <ToolbarDivider />
-
-      {/* ── Structure: inline on wide, overflow menu on narrow ───────── */}
-      {compact ? (
+        {/* ── Block type: reports the current block, changes the next one ── */}
         <Popover>
           <PopoverTrigger
             render={
               <Button
                 variant="ghost"
-                size="icon-sm"
-                className="size-7"
-                aria-label="More formatting options"
+                size="sm"
+                className="h-8 sm:h-8.5 min-w-0 gap-2 px-2.5 font-semibold text-foreground text-xs sm:text-sm"
+                aria-label={`Block type: ${currentBlock.label}`}
               />
             }
           >
-            <MoreHorizontal aria-hidden className="size-3.5" />
+            <ActiveBlockIcon aria-hidden className="size-4 shrink-0 text-primary" />
+            <span className={cn("truncate font-medium text-xs sm:text-sm", compact && "sr-only sm:not-sr-only")}>
+              {currentBlock.label}
+            </span>
+            <ChevronDown aria-hidden className="size-3.5 shrink-0 opacity-60" />
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-52 p-1">
-            {BLOCKS.filter((block) => !block.isActive(editor)).map((block) => {
+          <PopoverContent align="start" className="w-60 p-1.5 shadow-lg">
+            <p className="px-2.5 pt-1.5 pb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+              Turn into
+            </p>
+            {BLOCKS.map((block, index) => {
               const Icon = block.icon;
               return (
                 <button
                   key={block.label}
                   type="button"
                   onClick={() => block.run(editor)}
-                  className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  aria-pressed={activeBlocks[index] ?? false}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none",
+                    activeBlocks[index] && "bg-accent text-accent-foreground",
+                  )}
                 >
-                  <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+                  <Icon
+                    aria-hidden
+                    className={cn(
+                      "size-4 shrink-0",
+                      activeBlocks[index] ? "text-primary" : "text-muted-foreground",
+                    )}
+                  />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-medium">{block.label}</span>
-                    <span className="block text-[10px] text-muted-foreground">
+                    <span className="flex items-center justify-between gap-1">
+                      <span className="block text-sm font-semibold">{block.label}</span>
+                      {block.shortcut && (
+                        <kbd className="rounded border border-border/80 bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
+                          {block.shortcut.join("")}
+                        </kbd>
+                      )}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
                       {block.description}
                     </span>
                   </span>
@@ -398,33 +326,109 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
             })}
           </PopoverContent>
         </Popover>
-      ) : (
+
+        <ToolbarDivider />
+
+        {/* ── Inline marks ── */}
         <div className="flex items-center gap-0.5">
-          {BLOCKS.slice(4).map((block) => {
-            const index = BLOCKS.indexOf(block);
-            return (
-              <TooltipButton
-                key={block.label}
-                label={block.label}
-                shortcut={block.shortcut}
-                aria-pressed={activeBlocks[index] ?? false}
-                onClick={() => block.run(editor)}
-                className={cn(
-                  "size-7",
-                  activeBlocks[index] &&
-                    "bg-primary/12 text-primary hover:bg-primary/16 hover:text-primary",
-                )}
-              >
-                <block.icon aria-hidden className="size-3.5" />
-              </TooltipButton>
-            );
-          })}
+          {MARKS.map((mark, index) => (
+            <TooltipButton
+              key={mark.label}
+              label={mark.label}
+              shortcut={mark.shortcut}
+              aria-pressed={activeMarks[index] ?? false}
+              onClick={() => mark.run(editor)}
+              size="icon"
+              className={cn(
+                "size-8 sm:size-8.5 rounded-lg text-foreground/80 hover:text-foreground",
+                activeMarks[index] &&
+                  "bg-primary/12 text-primary hover:bg-primary/16 hover:text-primary",
+              )}
+            >
+              <mark.icon aria-hidden className="size-4" />
+            </TooltipButton>
+          ))}
+
+          {/* Link popover trigger */}
+          <LinkPopover editor={editor} />
+
+          {/* Color & highlight picker */}
+          <ColorPickerPopover editor={editor} />
         </div>
-      )}
+      </div>
+
+      {/* ── Structure / Blocks: full row on wide, collapsed menu on narrow ── */}
+      <div className="flex items-center gap-1">
+        <ToolbarDivider />
+        {compact ? (
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 sm:h-8.5 gap-1.5 px-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                  aria-label="More formatting options"
+                />
+              }
+            >
+              <MoreHorizontal aria-hidden className="size-4" />
+              <span className="hidden sm:inline">Insert</span>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-1.5 shadow-lg">
+              <p className="px-2.5 pt-1.5 pb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                Insert element
+              </p>
+              {BLOCKS.slice(4).map((block) => {
+                const Icon = block.icon;
+                return (
+                  <button
+                    key={block.label}
+                    type="button"
+                    onClick={() => block.run(editor)}
+                    className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+                  >
+                    <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold">{block.label}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {block.description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <div className="flex items-center gap-0.5">
+            {BLOCKS.slice(4).map((block) => {
+              const index = BLOCKS.indexOf(block);
+              return (
+                <TooltipButton
+                  key={block.label}
+                  label={block.label}
+                  shortcut={block.shortcut}
+                  aria-pressed={activeBlocks[index] ?? false}
+                  onClick={() => block.run(editor)}
+                  size="icon"
+                  className={cn(
+                    "size-8 sm:size-8.5 rounded-lg text-foreground/80 hover:text-foreground",
+                    activeBlocks[index] &&
+                      "bg-primary/12 text-primary hover:bg-primary/16 hover:text-primary",
+                  )}
+                >
+                  <block.icon aria-hidden className="size-4" />
+                </TooltipButton>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 function ToolbarDivider() {
-  return <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-border" />;
+  return <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />;
 }

@@ -43,7 +43,7 @@ export function RolePill({ role }: { role: DocumentSummary["role"] }) {
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset",
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset",
         tone.className,
       )}
     >
@@ -172,12 +172,12 @@ export function DocumentRow({
 
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-sm font-medium text-foreground">
+            <span className="truncate text-base font-semibold text-foreground">
               {document.title}
             </span>
             <RolePill role={document.role} />
           </span>
-          <span className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
+          <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
             {isOwner ? (
               <span>Owned by you</span>
             ) : (
@@ -190,14 +190,14 @@ export function DocumentRow({
 
         {/* Metadata columns — hidden below `md` where the row only has room
             for identity, so nothing is ever truncated into illegibility. */}
-        <span className="hidden w-28 shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground md:flex">
-          <Users aria-hidden className="size-3 shrink-0 opacity-70" />
+        <span className="hidden w-28 shrink-0 items-center gap-1.5 text-xs text-muted-foreground md:flex">
+          <Users aria-hidden className="size-3.5 shrink-0 opacity-70" />
           <span className="tabular-nums">
             {document.memberCount === 1 ? "Just you" : `${document.memberCount} people`}
           </span>
         </span>
-        <span className="hidden w-28 shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground md:flex">
-          <History aria-hidden className="size-3 shrink-0 opacity-70" />
+        <span className="hidden w-28 shrink-0 items-center gap-1.5 text-xs text-muted-foreground md:flex">
+          <History aria-hidden className="size-3.5 shrink-0 opacity-70" />
           <span className="tabular-nums">
             {document.versionCount === 0
               ? "No versions"
@@ -283,21 +283,21 @@ export function DocumentCard({
         </div>
 
         <div className="min-w-0">
-          <h3 className="line-clamp-2 text-sm font-medium text-foreground">
+          <h3 className="line-clamp-2 text-base font-semibold text-foreground">
             {document.title}
           </h3>
-          <p className="mt-1 truncate text-[11px] text-muted-foreground">
+          <p className="mt-1 truncate text-xs text-muted-foreground">
             {isOwner ? "Owned by you" : `Owned by ${document.ownerName}`}
           </p>
         </div>
 
         <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-2.5">
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             Updated {formatRelativeTime(new Date(document.updatedAt))}
           </span>
-          <span className="flex items-center gap-2.5 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-2.5 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              <Users aria-hidden className="size-3 opacity-70" />
+              <Users aria-hidden className="size-3.5 opacity-70" />
               <span className="tabular-nums">{document.memberCount}</span>
             </span>
             <span
@@ -309,7 +309,7 @@ export function DocumentCard({
               {noVersions ? (
                 <StatusDot status="syncing" />
               ) : (
-                <History aria-hidden className="size-3 opacity-70" />
+                <History aria-hidden className="size-3.5 opacity-70" />
               )}
               <span className="tabular-nums">{document.versionCount}</span>
             </span>

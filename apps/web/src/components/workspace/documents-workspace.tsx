@@ -182,10 +182,10 @@ export function DocumentsWorkspace({
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 pt-5 pb-4 sm:px-6">
           <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold tracking-tight text-foreground">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                 Documents
               </h1>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {hasDocuments
                   ? `${visible.length} document${visible.length === 1 ? "" : "s"} · ${
                       stats.versions
@@ -199,11 +199,11 @@ export function DocumentsWorkspace({
                 type="button"
                 onClick={() => setPaletteOpen(true)}
                 className={cn(
-                  "group hidden h-8 w-52 items-center gap-2 rounded-lg border border-input bg-background px-2.5 text-left text-xs text-muted-foreground transition-colors",
+                  "group hidden h-9 w-60 items-center gap-2.5 rounded-lg border border-input bg-background px-3 text-left text-sm text-muted-foreground transition-colors",
                   "hover:border-border-strong hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none sm:flex",
                 )}
               >
-                <Search aria-hidden className="size-3.5 shrink-0" />
+                <Search aria-hidden className="size-4 shrink-0" />
                 <span className="min-w-0 flex-1 truncate">Search documents</span>
                 <ShortcutKeys keys={["⌘", "K"]} />
               </button>
@@ -250,14 +250,14 @@ export function DocumentsWorkspace({
             <div className="relative min-w-0 flex-1 sm:max-w-64">
               <Search
                 aria-hidden
-                className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
               />
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Filter by title or owner…"
                 aria-label="Filter documents"
-                className="h-8 pl-8 pr-7 text-xs"
+                className="h-9 pl-9 pr-8 text-sm"
               />
               {query && (
                 <button

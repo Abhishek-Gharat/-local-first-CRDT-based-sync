@@ -10,7 +10,6 @@ import { yCursorPlugin } from "@tiptap/y-tiptap";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import { Bold, Italic, Strikethrough, Code, Terminal, Lightbulb } from "lucide-react";
-import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { EditorKeyboardShortcuts } from "@/components/editor/editor-keyboard-shortcuts";
 import { FindReplace } from "@/components/editor/find-replace/find-replace-extension";
 import { FindReplaceBar } from "@/components/editor/find-replace/find-replace-bar";
@@ -297,15 +296,13 @@ export function CollaborativeEditor({
 
   return (
     <div ref={surfaceRef} className="relative flex flex-1 flex-col">
-      {editable && editor && <EditorToolbar editor={editor} />}
-      {/* Above the canvas, below the toolbar in stacking terms: `sticky` here
-          pins it under the app bar while the document scrolls beneath. */}
+      {/* Search & floating table controls */}
       {editable && editor && <FindReplaceBar editor={editor} />}
       {editable && editor && <TableFloatingMenu editor={editor} />}
 
       <EditorContent
         editor={editor}
-        className="flex flex-1 flex-col pt-5 pb-32 sm:pb-48 [&>div]:flex-1"
+        className="flex flex-1 flex-col pt-3 pb-32 sm:pb-48 [&>div]:flex-1"
       />
 
       {/* Contextual selection toolbar */}

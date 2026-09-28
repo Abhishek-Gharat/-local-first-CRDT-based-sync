@@ -60,7 +60,7 @@ export function EditableTitle({
 
   if (!canRename) {
     return (
-      <h1 className="text-3xl font-bold tracking-tight text-balance text-foreground sm:text-4xl lg:text-[2.65rem] lg:leading-[1.12]">
+      <h1 className="text-4xl font-extrabold tracking-tight text-balance text-foreground sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
         {title}
       </h1>
     );
@@ -84,7 +84,7 @@ export function EditableTitle({
             setEditing(false);
           }
         }}
-        className="w-full min-w-0 rounded-xl border border-ring/60 bg-background px-3 py-1.5 text-3xl font-bold tracking-tight text-foreground outline-none ring-3 ring-ring/25 sm:text-4xl lg:text-[2.65rem] lg:leading-[1.12]"
+        className="w-full min-w-0 rounded-xl border border-ring/60 bg-background px-3 py-1.5 text-4xl font-extrabold tracking-tight text-foreground outline-none ring-3 ring-ring/25 sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]"
       />
     );
   }
@@ -102,7 +102,7 @@ export function EditableTitle({
         "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
       )}
     >
-      <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-[2.65rem] lg:leading-[1.12]">
+      <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
         {title}
       </h1>
       {saving ? (

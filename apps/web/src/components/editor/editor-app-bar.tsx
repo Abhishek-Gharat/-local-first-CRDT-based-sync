@@ -166,14 +166,14 @@ export function EditorAppBar({
 
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span
-            className="min-w-0 truncate text-sm font-medium text-foreground"
+            className="min-w-0 truncate text-sm font-semibold tracking-tight text-foreground sm:text-base"
             title={documentTitle}
           >
             {documentTitle}
           </span>
           <span
             className={cn(
-              "hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset sm:inline-flex",
+              "hidden shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset sm:inline-flex",
               ROLE_TONE[role].className,
             )}
           >

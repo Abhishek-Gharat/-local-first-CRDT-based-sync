@@ -20,6 +20,7 @@ import {
 } from "@/lib/collaboration/collaborator-colors";
 import { queueVersion, flushVersionQueue } from "@/lib/offline/version-queue";
 import { CollaborativeEditor } from "@/components/editor/collaborative-editor";
+import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { EditorAppBar } from "@/components/editor/editor-app-bar";
 import { EditorStatusBar } from "@/components/editor/editor-status-bar";
 import {
@@ -276,14 +277,23 @@ export function DocumentEditor({
       <EditorBootingState visible={booting} />
       <NetworkBanner status={status} offline={offline} />
 
+      {/* ── Fixed Formatting Ribbon directly below App Bar ── */}
+      {canWrite && editor && (
+        <div className="sticky top-14 z-20 border-b border-border/80 bg-background/95 shadow-2xs backdrop-blur-md">
+          <div className="mx-auto flex w-full max-w-5xl items-center px-4 py-2 sm:px-6">
+            <EditorToolbar editor={editor} />
+          </div>
+        </div>
+      )}
+
       {/* ── Writing canvas ────────────────────────────────────────────
           A generous, elegant document paper canvas filling the vertical viewport
           with balanced proportions, smooth breathing margins, and comfortable reading width. */}
       <div className="flex-1 bg-muted/20">
-        <div className="mx-auto flex min-h-[calc(100vh-8.5rem)] w-full max-w-5xl flex-col px-3 py-4 sm:px-6 sm:py-6">
-          <div className="flex flex-1 flex-col rounded-2xl border border-border/80 bg-canvas px-6 py-8 shadow-sm transition-all sm:px-12 sm:py-10 md:px-16 md:py-12">
+        <div className="mx-auto flex min-h-[calc(100vh-8.5rem)] w-full max-w-5xl flex-col px-3 py-6 sm:px-6 sm:py-8">
+          <div className="flex flex-1 flex-col rounded-2xl border border-border/80 bg-canvas px-6 py-10 shadow-sm transition-all sm:px-12 sm:py-12 md:px-16 md:py-14">
             {/* Document identity */}
-            <div className="mb-2 border-b border-border/50 pb-5">
+            <div className="mb-6 border-b border-border/50 pb-6">
               <EditableTitle
                 documentId={documentId}
                 initialTitle={title}
@@ -291,9 +301,9 @@ export function DocumentEditor({
                 saving={saving}
               />
 
-              <dl className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
+              <dl className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-muted-foreground">
                 <div className="inline-flex items-center gap-1.5">
-                  <Users aria-hidden className="size-3" />
+                  <Users aria-hidden className="size-3.5" />
                   <dt className="sr-only">Owner</dt>
                   <dd>
                     {role === "owner"
@@ -303,7 +313,7 @@ export function DocumentEditor({
                 </div>
                 <span aria-hidden className="h-3 w-px bg-border" />
                 <div className="inline-flex items-center gap-1.5">
-                  <Clock aria-hidden className="size-3" />
+                  <Clock aria-hidden className="size-3.5" />
                   <dt className="sr-only">Last edited</dt>
                   <dd>Edited {formatRelativeTime(new Date(updatedAt))}</dd>
                 </div>
@@ -319,7 +329,7 @@ export function DocumentEditor({
               onEditor={handleEditor}
             />
 
-            {role === "viewer" && <ViewerNotice className="mt-6" />}
+            {role === "viewer" && <ViewerNotice className="mt-8" />}
           </div>
         </div>
       </div>

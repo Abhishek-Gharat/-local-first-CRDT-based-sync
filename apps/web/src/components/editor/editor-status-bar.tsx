@@ -39,7 +39,7 @@ export function EditorStatusBar({
   return (
     <footer className="sticky bottom-0 z-20 border-t border-border bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-xs text-muted-foreground sm:px-6">
-        <span aria-label="Document statistics" className="tabular-nums font-mono text-[11.5px] font-medium tracking-tight">
+        <span aria-label="Document statistics" className="tabular-nums font-mono text-xs font-medium tracking-tight">
           {words.toLocaleString()} {words === 1 ? "word" : "words"} ·{" "}
           {chars.toLocaleString()} characters · {readMinutes} min read
         </span>
