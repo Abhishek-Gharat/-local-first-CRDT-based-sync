@@ -1,22 +1,33 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Pencil } from "lucide-react";
+import { Loader2, Pencil } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface EditableTitleProps {
   documentId: string;
   initialTitle: string;
   /** viewers see a static heading */
   canRename: boolean;
+  /** Set while a rename request is in flight, for the inline spinner. */
+  saving?: boolean;
 }
 
 /**
- * Click-to-edit document title over the existing PATCH /api/documents/[id]
- * (owner/editor only — mirrored by `canRename` so viewers get a plain
- * heading). Optimistic: the heading updates immediately; on a failed PATCH
- * it rolls back to the last saved value. Enter/blur commit, Escape cancels.
+ * The document's title, rendered as the page's <h1> at the top of the writing
+ * canvas rather than crammed into the app bar.
+ *
+ * Click-to-edit over the existing PATCH /api/documents/[id] (owner/editor only
+ * — mirrored by `canRename` so viewers get a plain heading). Optimistic: the
+ * heading updates immediately; on a failed PATCH it rolls back to the last
+ * saved value. Enter/blur commit, Escape cancels.
  */
-export function EditableTitle({ documentId, initialTitle, canRename }: EditableTitleProps) {
+export function EditableTitle({
+  documentId,
+  initialTitle,
+  canRename,
+  saving = false,
+}: EditableTitleProps) {
   const [title, setTitle] = useState(initialTitle);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(initialTitle);
@@ -49,7 +60,9 @@ export function EditableTitle({ documentId, initialTitle, canRename }: EditableT
 
   if (!canRename) {
     return (
-      <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl">{title}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-balance text-foreground sm:text-3xl">
+        {title}
+      </h1>
     );
   }
 
@@ -71,7 +84,7 @@ export function EditableTitle({ documentId, initialTitle, canRename }: EditableT
             setEditing(false);
           }
         }}
-        className="w-full min-w-0 max-w-md rounded-md border border-input bg-transparent px-2 py-0.5 text-lg font-semibold tracking-tight outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-xl"
+        className="w-full min-w-0 rounded-lg border border-ring/60 bg-background px-2 py-1 text-2xl font-semibold tracking-tight text-foreground outline-none ring-3 ring-ring/25 sm:text-3xl"
       />
     );
   }
@@ -84,13 +97,25 @@ export function EditableTitle({ documentId, initialTitle, canRename }: EditableT
         setEditing(true);
       }}
       title="Rename document"
-      className="group/title flex min-w-0 items-center gap-2 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      className={cn(
+        "group/title -ml-2 flex min-w-0 items-start gap-2 rounded-lg px-2 py-1 text-left transition-colors",
+        "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+      )}
     >
-      <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl">{title}</h1>
-      <Pencil
-        aria-hidden
-        className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/title:opacity-100 group-focus-visible/title:opacity-100"
-      />
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        {title}
+      </h1>
+      {saving ? (
+        <Loader2
+          aria-hidden
+          className="mt-1.5 size-3.5 shrink-0 animate-spin text-muted-foreground"
+        />
+      ) : (
+        <Pencil
+          aria-hidden
+          className="mt-1.5 size-3.5 shrink-0 text-muted-foreground/50 opacity-0 transition-opacity group-hover/title:opacity-100 group-focus-visible/title:opacity-100 sm:opacity-0"
+        />
+      )}
       <span className="sr-only">— rename document</span>
     </button>
   );

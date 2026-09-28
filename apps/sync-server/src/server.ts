@@ -1,8 +1,10 @@
 import type { IncomingMessage } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
+import { removeAwarenessStates } from "y-protocols/awareness";
 import {
   applyIncomingMessage,
   encodeSyncStep1,
+  encodeAwarenessUpdate,
   verifySyncToken,
   parseMessageEnvelope,
   isMutatingSyncMessage,
@@ -90,6 +92,13 @@ export function createSyncServer(
     // handshake: tell the new client what we already have so it can send
     // back only what it's missing (state-vector diff, not a full doc dump)
     send(socket, encodeSyncStep1(room.doc));
+    const awarenessStates = room.awareness.getStates();
+    if (awarenessStates.size > 0) {
+      send(
+        socket,
+        encodeAwarenessUpdate(room.awareness, Array.from(awarenessStates.keys())),
+      );
+    }
 
     socket.on("message", (data: ArrayBuffer | Buffer | Buffer[]) => {
       const message = Array.isArray(data)
@@ -118,9 +127,35 @@ export function createSyncServer(
       if (reply) send(socket, reply);
     });
 
-    socket.on("close", () => {
+    const socketClientIds = new Set<number>();
+    const onAwarenessUpdate = (
+      changes: { added: number[]; updated: number[]; removed: number[] },
+      origin: unknown,
+    ) => {
+      if (origin === socket) {
+        for (const id of changes.added) {
+          socketClientIds.add(id);
+        }
+        for (const id of changes.removed) {
+          socketClientIds.delete(id);
+        }
+      }
+    };
+    room.awareness.on("update", onAwarenessUpdate);
+
+    const cleanup = () => {
       room.conns.delete(socket);
-    });
+      room.awareness.off("update", onAwarenessUpdate);
+      if (socketClientIds.size > 0) {
+        removeAwarenessStates(
+          room.awareness,
+          Array.from(socketClientIds),
+          null,
+        );
+      }
+    };
+
+    socket.on("close", cleanup);
 
     // `ws` emits 'error' on protocol-level faults (e.g. a frame exceeding
     // maxPayload → WS_ERR_UNSUPPORTED_MESSAGE_LENGTH). Without a listener,
@@ -128,9 +163,7 @@ export function createSyncServer(
     // process down — a single malformed client would DoS every document.
     // Swallow it per-connection: the socket is already being torn down by
     // ws; we just drop it from the room and keep serving everyone else.
-    socket.on("error", () => {
-      room.conns.delete(socket);
-    });
+    socket.on("error", cleanup);
   });
 
   return wss;

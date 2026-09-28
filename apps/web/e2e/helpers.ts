@@ -52,6 +52,8 @@ export async function registerAndLogin(page: Page, user: TestUser): Promise<void
 export async function createDocument(page: Page): Promise<string> {
   await page.goto("/documents");
   await page.getByRole("button", { name: /new document/i }).click();
+  await page.getByLabel("Document title").fill(`Test Document ${uniqueSuffix()}`);
+  await page.getByRole("button", { name: /create document/i }).click();
   await page.waitForURL(/\/documents\/[0-9a-f-]+$/);
   const match = /\/documents\/([0-9a-f-]+)$/.exec(page.url());
   if (!match) throw new Error(`could not parse document id from ${page.url()}`);
@@ -90,4 +92,16 @@ export async function typeInEditor(page: Page, text: string): Promise<void> {
 // users — or the same user in two tabs — can edit concurrently.
 export async function newSession(context: BrowserContext): Promise<Page> {
   return context.newPage();
+}
+
+/**
+ * Returns the textual content of the editor, stripping out remote collaborator cursor tags
+ * which live inside the .ProseMirror DOM tree.
+ */
+export async function getEditorText(page: Page): Promise<string> {
+  return page.locator(".ProseMirror").evaluate((el) => {
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll(".ProseMirror-yjs-cursor").forEach((n) => n.remove());
+    return clone.innerText.trim();
+  });
 }

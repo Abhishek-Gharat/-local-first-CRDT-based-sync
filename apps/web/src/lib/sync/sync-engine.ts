@@ -184,6 +184,9 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       backoff = minBackoffMs;
       phase = "open";
       ws.send(encodeSyncStep1(doc));
+      if (awareness.getLocalState() !== null) {
+        ws.send(encodeAwarenessUpdate(awareness, [awareness.clientID]));
+      }
       flushPendingUpdates();
       recomputeStatus();
     });

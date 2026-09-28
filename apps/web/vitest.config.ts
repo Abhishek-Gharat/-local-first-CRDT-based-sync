@@ -18,7 +18,14 @@ export default defineConfig({
     // network round-trips comfortably exceed vitest's 5s/10s defaults.
     testTimeout: 20000,
     hookTimeout: 20000,
-    // The e2e/ specs use @playwright/test's runner, not vitest — exclude them
+    // Each jsdom suite that mounts a real ProseMirror editor or a Base UI
+    // overlay pulls in a large module graph, and the fork pool was starting one
+    // worker per core. Past ~20 suites that exhausts memory and vitest reports
+    // it as "Worker exited unexpectedly", which reads like a test failure but is
+    // an environment limit. Two workers keeps `vitest run` deterministic; the
+    // suite is fast enough that the trade is worth it.
+    maxWorkers: 2,
+    // The e2e/ specs use @playwright/test's runner, not vitest �?" exclude them
     // so `vitest run` doesn't try to execute them (and fail on the missing
     // vitest globals). Playwright picks them up via playwright.config.ts.
     exclude: ["**/node_modules/**", "**/dist/**", "e2e/**"],

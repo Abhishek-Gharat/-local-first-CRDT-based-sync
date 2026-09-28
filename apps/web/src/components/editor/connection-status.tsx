@@ -1,44 +1,40 @@
 "use client";
 
 import type { ConnectionStatus as Status } from "@/lib/sync/sync-engine";
+import { StatusDot, statusTone } from "@/components/ui/status-dot";
 import { cn } from "@/lib/utils";
 
 interface ConnectionStatusProps {
   status: Status;
+  /** `bar` is the editor app bar chip; `inline` is the compact status-bar form. */
+  variant?: "bar" | "inline";
 }
 
 // One row per possible status: the human-readable text (announced to screen
-// readers), a longer explanation surfaced as a tooltip, a dot colour, and the
-// aria-live politeness. "offline" is the only one worth interrupting for
-// (assertive) — it means edits aren't reaching collaborators yet; everything
-// else is incidental progress and announces politely so it doesn't talk over
-// the user while they type.
-const STATUS_META: Record<
-  Status,
-  { label: string; detail: string; dotClass: string; live: "polite" | "assertive" }
-> = {
+// readers), a longer explanation surfaced as a tooltip, and the aria-live
+// politeness. "offline" is the only one worth interrupting for (assertive) —
+// it means edits aren't reaching collaborators yet; everything else is
+// incidental progress and announces politely so it doesn't talk over the
+// user while they type.
+const STATUS_META: Record<Status, { label: string; detail: string; live: "polite" | "assertive" }> = {
   online: {
     label: "Connected",
-    detail: "Changes sync live to collaborators",
-    dotClass: "bg-emerald-500",
+    detail: "Every change is reaching collaborators as you type",
     live: "polite",
   },
   syncing: {
     label: "Syncing…",
-    detail: "Sending and receiving changes",
-    dotClass: "bg-amber-500 animate-pulse",
+    detail: "Sending and receiving document updates",
     live: "polite",
   },
   "conflict-resolved": {
     label: "Merged concurrent edits",
     detail: "A collaborator's concurrent edits were merged — no changes lost",
-    dotClass: "bg-sky-500",
     live: "polite",
   },
   offline: {
-    label: "Offline — will sync on reconnect",
+    label: "Offline",
     detail: "Editing locally; changes are saved on this device and sync when reconnected",
-    dotClass: "bg-muted-foreground",
     live: "assertive",
   },
 };
@@ -50,21 +46,26 @@ const STATUS_META: Record<
  * users watching the coloured dot. The dot is `aria-hidden` — it's redundant
  * decoration over the already-announced text.
  */
-export function ConnectionStatus({ status }: ConnectionStatusProps) {
+export function ConnectionStatus({ status, variant = "bar" }: ConnectionStatusProps) {
   const meta = STATUS_META[status];
+  const tone = statusTone(status);
+
   return (
     <span
       role="status"
       aria-live={meta.live}
       data-status={status}
       title={meta.detail}
-      className="inline-flex max-w-56 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs text-muted-foreground"
+      className={cn(
+        "inline-flex items-center gap-1.5 font-medium whitespace-nowrap",
+        variant === "bar"
+          ? "rounded-full border px-2.5 py-1 text-[11px] shadow-xs"
+          : "text-[11px]",
+        variant === "bar" ? tone.surface : "text-muted-foreground",
+      )}
     >
-      <span
-        aria-hidden
-        className={cn("size-2 shrink-0 rounded-full transition-colors duration-300", meta.dotClass)}
-      />
-      <span className="truncate">{meta.label}</span>
+      <StatusDot status={status} />
+      <span className={cn(variant === "bar" && "truncate")}>{meta.label}</span>
     </span>
   );
 }

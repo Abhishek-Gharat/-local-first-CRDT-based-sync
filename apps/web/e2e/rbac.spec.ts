@@ -7,6 +7,7 @@ import {
   createDocument,
   addMember,
   editorLocator,
+  getEditorText,
 } from "./helpers";
 
 // The assignment's third headline criterion: a viewer cannot write, and that
@@ -60,8 +61,8 @@ test.describe("role-based access control", () => {
     // Give any (rejected) frame time to round-trip. The owner's document must
     // remain exactly what the owner wrote.
     await viewerPage.waitForTimeout(1_500);
-    await expect(editorLocator(page)).not.toContainText("VIEWER TAMPERED");
-    await expect(editorLocator(page)).toContainText("owner authored this line");
+    await expect(await getEditorText(page)).not.toContain("VIEWER TAMPERED");
+    await expect(await getEditorText(page)).toContain("owner authored this line");
 
     await viewerContext.close();
   });

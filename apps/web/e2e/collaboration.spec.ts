@@ -1,10 +1,14 @@
 import { test, expect } from "@playwright/test";
 import {
   makeUser,
+  registerUser,
   registerAndLogin,
+  login,
   createDocument,
+  addMember,
   editorLocator,
   typeInEditor,
+  getEditorText,
 } from "./helpers";
 
 // The assignment's first two headline criteria, exercised through real
@@ -76,7 +80,63 @@ test.describe("collaborative editing", () => {
 
     // And converge to exactly the same text (order-independent CRDT merge).
     await expect
-      .poll(async () => (await editorLocator(page).innerText()).trim())
-      .toBe((await editorLocator(second).innerText()).trim());
+      .poll(async () => (await getEditorText(page)).trim())
+      .toBe((await getEditorText(second)).trim());
+  });
+
+  test("renders collaborator presence avatars and remote cursors across two users", async ({
+    browser,
+    page,
+  }) => {
+    const owner = makeUser("cursor-owner");
+    const collaborator = makeUser("cursor-peer");
+
+    // Owner creates a document and types a baseline
+    await registerAndLogin(page, owner);
+    const documentId = await createDocument(page);
+    await typeInEditor(page, "Collaborative cursors in real time. ");
+
+    // Register second user and grant them editor role
+    await registerUser(page, collaborator);
+    await addMember(page, documentId, collaborator.email, "editor");
+
+    // Second user signs in from an isolated browser context
+    const peerContext = await browser.newContext();
+    const peerPage = await peerContext.newPage();
+    await login(peerPage, collaborator);
+    await peerPage.goto(`/documents/${documentId}`);
+    await expect(editorLocator(peerPage)).toBeVisible();
+
+    // Verify presence avatars in the document header for both users
+    await expect(
+      page.getByRole("listitem", { name: new RegExp(collaborator.name, "i") }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("listitem", { name: new RegExp(`${owner.name} \\(You\\)`, "i") }),
+    ).toBeVisible();
+
+    await expect(
+      peerPage.getByRole("listitem", { name: new RegExp(owner.name, "i") }),
+    ).toBeVisible();
+    await expect(
+      peerPage.getByRole("listitem", { name: new RegExp(`${collaborator.name} \\(You\\)`, "i") }),
+    ).toBeVisible();
+
+    // Peer clicks into the editor to place their cursor
+    await editorLocator(peerPage).click();
+
+    // Owner sees remote cursor caret with peer's name tag
+    const remoteCursor = page.locator(".ProseMirror-yjs-cursor");
+    await expect(remoteCursor).toBeVisible();
+    await expect(remoteCursor).toContainText(collaborator.name);
+
+    // When the peer disconnects/closes the page, their presence & cursor disappear
+    await peerPage.close();
+    await peerContext.close();
+
+    await expect(
+      page.getByRole("listitem", { name: new RegExp(collaborator.name, "i") }),
+    ).not.toBeVisible();
+    await expect(page.locator(".ProseMirror-yjs-cursor")).not.toBeVisible();
   });
 });

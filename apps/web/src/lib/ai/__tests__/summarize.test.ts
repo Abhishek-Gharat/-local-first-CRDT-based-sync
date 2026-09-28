@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockLanguageModelV4 } from "ai/test";
 import {
   buildSummaryPrompt,
@@ -91,6 +91,17 @@ describe("generateSummary (mocked provider)", () => {
 });
 
 describe("summarizeDiff without a provider", () => {
+  beforeEach(() => {
+    vi.stubEnv("AI_PROVIDER", "");
+    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("GROQ_API_KEY", "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("returns the word-count fallback and never claims it was AI-generated", async () => {
     // No AI_PROVIDER / API key set in the test env, so this exercises the
     // graceful-degradation path end to end.

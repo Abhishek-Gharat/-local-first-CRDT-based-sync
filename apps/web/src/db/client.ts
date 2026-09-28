@@ -14,10 +14,13 @@ type Db = ReturnType<typeof drizzle<typeof schema>>;
 // page data" step imports every route module, including ones that pull this
 // in transitively, with no real env configured. An eager connection attempt
 // here would fail the production build itself, not just requests.
-let lazyDb: Db | undefined;
+const globalForDb = globalThis as unknown as {
+  lazyDb?: Db;
+  postgresClient?: ReturnType<typeof postgres>;
+};
 
 function getDb(): Db {
-  if (lazyDb) return lazyDb;
+  if (globalForDb.lazyDb) return globalForDb.lazyDb;
 
   const connectionString = process.env.APP_DATABASE_URL;
   if (!connectionString) {
@@ -25,9 +28,11 @@ function getDb(): Db {
   }
 
   // one pooled connection per process — reused across requests in dev/serverless
-  const client = postgres(connectionString, { max: 10 });
-  lazyDb = drizzle(client, { schema });
-  return lazyDb;
+  if (!globalForDb.postgresClient) {
+    globalForDb.postgresClient = postgres(connectionString, { max: 10 });
+  }
+  globalForDb.lazyDb = drizzle(globalForDb.postgresClient, { schema });
+  return globalForDb.lazyDb;
 }
 
 export const db: Db = new Proxy({} as Db, {
