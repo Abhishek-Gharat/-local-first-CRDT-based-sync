@@ -208,13 +208,25 @@ export function EditorToolbar({ editor, className }: EditorToolbarProps) {
   // one boolean per item, recomputed only when the editor state changes
   const activeStates = useEditorState({
     editor,
-    selector: ({ editor: e }) => ({
-      canUndo: e.can().undo(),
-      canRedo: e.can().redo(),
-      marks: MARKS.map((item) => item.isActive(e)),
-      blocks: BLOCKS.map((item) => item.isActive(e)),
-    }),
+    selector: ({ editor: e }) => {
+      if (!e) {
+        return {
+          canUndo: false,
+          canRedo: false,
+          marks: MARKS.map(() => false),
+          blocks: BLOCKS.map(() => false),
+        };
+      }
+      return {
+        canUndo: typeof e.can === "function" ? e.can().undo() : false,
+        canRedo: typeof e.can === "function" ? e.can().redo() : false,
+        marks: MARKS.map((item) => item.isActive(e)),
+        blocks: BLOCKS.map((item) => item.isActive(e)),
+      };
+    },
   });
+
+  if (!editor) return null;
 
   const canUndo = activeStates?.canUndo ?? false;
   const canRedo = activeStates?.canRedo ?? false;
