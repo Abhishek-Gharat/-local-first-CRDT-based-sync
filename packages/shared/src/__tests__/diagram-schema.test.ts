@@ -12,6 +12,7 @@ describe("diagram schema and templates", () => {
     expect(d.nodes).toEqual([]);
     expect(d.edges).toEqual([]);
     expect(d.groups).toEqual([]);
+    expect(d.drawings).toEqual([]);
     const parsed = DiagramModelSchema.safeParse(d);
     expect(parsed.success).toBe(true);
   });

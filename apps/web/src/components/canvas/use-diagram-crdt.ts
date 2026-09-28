@@ -7,6 +7,7 @@ import {
   type SystemNode,
   type SystemEdge,
   type SystemGroup,
+  type SystemDrawing,
   DiagramModelSchema,
   createEmptyDiagram,
   SYSTEM_DESIGN_TEMPLATES,
@@ -220,6 +221,33 @@ export function useDiagramCrdt({
     [commitToDoc],
   );
 
+  const addDrawing = useCallback(
+    (drawing: SystemDrawing) => {
+      commitToDoc((prev) => ({
+        ...prev,
+        drawings: [...(prev.drawings ?? []), drawing],
+      }));
+    },
+    [commitToDoc],
+  );
+
+  const deleteDrawing = useCallback(
+    (id: string) => {
+      commitToDoc((prev) => ({
+        ...prev,
+        drawings: (prev.drawings ?? []).filter((d) => d.id !== id),
+      }));
+    },
+    [commitToDoc],
+  );
+
+  const clearDrawings = useCallback(() => {
+    commitToDoc((prev) => ({
+      ...prev,
+      drawings: [],
+    }));
+  }, [commitToDoc]);
+
   return {
     diagram,
     addNode,
@@ -230,6 +258,9 @@ export function useDiagramCrdt({
     addGroup,
     updateGroup,
     deleteGroup,
+    addDrawing,
+    deleteDrawing,
+    clearDrawings,
     setViewport,
     setFullDiagram,
     loadTemplate,

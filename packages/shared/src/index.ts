@@ -20,6 +20,8 @@ export {
   SystemNodeSchema,
   SystemEdgeSchema,
   SystemGroupSchema,
+  DrawingPointSchema,
+  SystemDrawingSchema,
   DiagramModelSchema,
   createEmptyDiagram,
   SYSTEM_DESIGN_TEMPLATES,
@@ -32,6 +34,8 @@ export type {
   SystemNode,
   SystemEdge,
   SystemGroup,
+  DrawingPoint,
+  SystemDrawing,
   DiagramModel,
 } from "./diagram-schema.js";
 

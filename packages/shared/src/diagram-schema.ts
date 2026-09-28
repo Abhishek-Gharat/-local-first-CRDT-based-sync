@@ -10,6 +10,8 @@ export const NodeTypeEnum = z.enum([
   "cloud",
   "container",
   "text",
+  "rectangle",
+  "circle",
 ]);
 export type NodeType = z.infer<typeof NodeTypeEnum>;
 
@@ -70,12 +72,28 @@ export const SystemGroupSchema = z.object({
 });
 export type SystemGroup = z.infer<typeof SystemGroupSchema>;
 
+export const DrawingPointSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+});
+export type DrawingPoint = z.infer<typeof DrawingPointSchema>;
+
+export const SystemDrawingSchema = z.object({
+  id: z.string(),
+  points: z.array(DrawingPointSchema),
+  color: z.string().default("#a855f7"),
+  strokeWidth: z.number().default(3),
+  tool: z.enum(["pen", "highlighter"]).default("pen"),
+});
+export type SystemDrawing = z.infer<typeof SystemDrawingSchema>;
+
 export const DiagramModelSchema = z.object({
   version: z.number().default(1),
   title: z.string().optional(),
   nodes: z.array(SystemNodeSchema).default([]),
   edges: z.array(SystemEdgeSchema).default([]),
   groups: z.array(SystemGroupSchema).default([]),
+  drawings: z.array(SystemDrawingSchema).default([]),
   viewport: z
     .object({
       x: z.number().default(0),
@@ -96,6 +114,7 @@ export function createEmptyDiagram(title?: string): DiagramModel {
     nodes: [],
     edges: [],
     groups: [],
+    drawings: [],
     viewport: { x: 0, y: 0, zoom: 1 },
   };
 }
@@ -111,6 +130,7 @@ export const SYSTEM_DESIGN_TEMPLATES: Record<string, { name: string; description
       version: 1,
       title: "Microservices Architecture",
       viewport: { x: 40, y: 40, zoom: 0.85 },
+      drawings: [],
       groups: [
         {
           id: "grp-edge",
@@ -251,6 +271,7 @@ export const SYSTEM_DESIGN_TEMPLATES: Record<string, { name: string; description
       version: 1,
       title: "DocSync Local-First CRDT Architecture",
       viewport: { x: 40, y: 40, zoom: 0.85 },
+      drawings: [],
       groups: [
         {
           id: "grp-client",

@@ -13,11 +13,10 @@ import {
   MessageSquare,
   Shield,
   ArrowRight,
-  Move,
+  ArrowUpRight,
   Plus,
   Minus,
   Sparkles,
-  Maximize2,
   RotateCcw,
   Download,
   LayoutGrid,
@@ -25,12 +24,18 @@ import {
   Edit3,
   MousePointer,
   Box,
-  Share2,
+  Pencil,
+  Eraser,
+  Square,
+  Circle,
+  Type,
+  Check,
 } from "lucide-react";
 import {
   type SystemNode,
   type SystemEdge,
   type SystemGroup,
+  type SystemDrawing,
   type NodeType,
   type NodeColor,
   type DiagramModel,
@@ -48,6 +53,16 @@ interface SystemDesignCanvasProps {
   className?: string;
 }
 
+export type CanvasTool =
+  | "select"
+  | "rectangle"
+  | "circle"
+  | "connect"
+  | "draw"
+  | "eraser"
+  | "text"
+  | "group";
+
 const COLOR_MAP: Record<NodeColor, { border: string; bg: string; text: string; ring: string }> = {
   blue: { border: "border-sky-500/60", bg: "bg-sky-500/10", text: "text-sky-400", ring: "ring-sky-500/30" },
   emerald: { border: "border-emerald-500/60", bg: "bg-emerald-500/10", text: "text-emerald-400", ring: "ring-emerald-500/30" },
@@ -58,6 +73,15 @@ const COLOR_MAP: Record<NodeColor, { border: string; bg: string; text: string; r
   zinc: { border: "border-zinc-700/80", bg: "bg-zinc-800/40", text: "text-zinc-300", ring: "ring-zinc-500/30" },
   orange: { border: "border-orange-500/60", bg: "bg-orange-500/10", text: "text-orange-400", ring: "ring-orange-500/30" },
 };
+
+const DRAW_PALETTE = [
+  { color: "#f4f4f5", label: "White" },
+  { color: "#a855f7", label: "Violet" },
+  { color: "#38bdf8", label: "Sky" },
+  { color: "#34d399", label: "Emerald" },
+  { color: "#fbbf24", label: "Amber" },
+  { color: "#f43f5e", label: "Rose" },
+];
 
 function getNodeIcon(type: NodeType) {
   switch (type) {
@@ -75,10 +99,138 @@ function getNodeIcon(type: NodeType) {
       return Cloud;
     case "container":
       return Layers;
+    case "circle":
+      return Circle;
+    case "rectangle":
+      return Square;
+    case "text":
+      return Type;
     case "service":
     default:
       return Server;
   }
+}
+
+/**
+ * Smooth quadratic Bezier curve conversion for freehand drawing strokes
+ */
+function pointsToSvgPath(points: { x: number; y: number }[]): string {
+  if (!points || points.length === 0) return "";
+  if (points.length === 1) {
+    return `M ${points[0].x} ${points[0].y} L ${points[0].x + 0.1} ${points[0].y + 0.1}`;
+  }
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const xc = (points[i].x + points[i + 1].x) / 2;
+    const yc = (points[i].y + points[i + 1].y) / 2;
+    d += ` Q ${points[i].x} ${points[i].y}, ${xc} ${yc}`;
+  }
+  const last = points[points.length - 1];
+  d += ` L ${last.x} ${last.y}`;
+  return d;
+}
+
+/**
+ * Exports diagram as a standalone SVG file
+ */
+function exportDiagramAsSvg(diagram: DiagramModel) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  diagram.nodes.forEach((n) => {
+    minX = Math.min(minX, n.x);
+    minY = Math.min(minY, n.y);
+    maxX = Math.max(maxX, n.x + n.width);
+    maxY = Math.max(maxY, n.y + n.height);
+  });
+  diagram.groups.forEach((g) => {
+    minX = Math.min(minX, g.x);
+    minY = Math.min(minY, g.y);
+    maxX = Math.max(maxX, g.x + g.width);
+    maxY = Math.max(maxY, g.y + g.height);
+  });
+  diagram.drawings?.forEach((d) => {
+    d.points.forEach((p) => {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
+    });
+  });
+
+  if (minX === Infinity) {
+    minX = 0;
+    minY = 0;
+    maxX = 1200;
+    maxY = 800;
+  }
+
+  const padding = 60;
+  const vx = Math.round(minX - padding);
+  const vy = Math.round(minY - padding);
+  const vw = Math.round(maxX - minX + padding * 2);
+  const vh = Math.round(maxY - minY + padding * 2);
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx} ${vy} ${vw} ${vh}" width="${vw}" height="${vh}" style="background:#090a0f;font-family:ui-sans-serif,system-ui,sans-serif;">\n`;
+  svg += `  <defs>\n    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">\n      <polygon points="0 0, 9 4.5, 0 9" fill="#94a3b8" />\n    </marker>\n  </defs>\n`;
+
+  // Groups
+  diagram.groups.forEach((g) => {
+    svg += `  <rect x="${g.x}" y="${g.y}" width="${g.width}" height="${g.height}" rx="16" fill="rgba(24,24,27,0.4)" stroke="#3f3f46" stroke-dasharray="6,6" stroke-width="2" />\n`;
+    svg += `  <text x="${g.x + 16}" y="${g.y + 26}" fill="#e4e4e7" font-weight="700" font-size="12px">${g.label}</text>\n`;
+  });
+
+  // Drawings
+  diagram.drawings?.forEach((d) => {
+    const pathD = pointsToSvgPath(d.points);
+    svg += `  <path d="${pathD}" fill="none" stroke="${d.color}" stroke-width="${d.strokeWidth}" stroke-linecap="round" stroke-linejoin="round" opacity="${d.tool === "highlighter" ? 0.45 : 1}" />\n`;
+  });
+
+  // Edges
+  diagram.edges.forEach((e) => {
+    const from = diagram.nodes.find((n) => n.id === e.from);
+    const to = diagram.nodes.find((n) => n.id === e.to);
+    if (from && to) {
+      const x1 = from.x + from.width / 2;
+      const y1 = from.y + from.height / 2;
+      const x2 = to.x + to.width / 2;
+      const y2 = to.y + to.height / 2;
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const cx1 = x1 + dx * 0.45;
+      const cy1 = y1;
+      const cx2 = x1 + dx * 0.55;
+      const cy2 = y2;
+      svg += `  <path d="M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrow)" />\n`;
+      if (e.label) {
+        svg += `  <text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 6}" fill="#cbd5e1" font-size="11px" font-weight="600" text-anchor="middle">${e.label}</text>\n`;
+      }
+    }
+  });
+
+  // Nodes
+  diagram.nodes.forEach((n) => {
+    svg += `  <rect x="${n.x}" y="${n.y}" width="${n.width}" height="${n.height}" rx="12" fill="#18181b" stroke="#38bdf8" stroke-width="1.5" />\n`;
+    svg += `  <text x="${n.x + 14}" y="${n.y + 28}" fill="#ffffff" font-weight="700" font-size="13px">${n.label}</text>\n`;
+    if (n.sublabel) {
+      svg += `  <text x="${n.x + 14}" y="${n.y + 46}" fill="#94a3b8" font-size="10px">${n.sublabel}</text>\n`;
+    }
+    if (n.technology) {
+      svg += `  <text x="${n.x + 14}" y="${n.y + 66}" fill="#64748b" font-family="monospace" font-size="9px">${n.technology}</text>\n`;
+    }
+  });
+
+  svg += `</svg>`;
+
+  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${(diagram.title ?? "architecture-diagram").toLowerCase().replace(/\s+/g, "-")}.svg`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export function SystemDesignCanvas({
@@ -96,6 +248,9 @@ export function SystemDesignCanvas({
     addGroup,
     updateGroup,
     deleteGroup,
+    addDrawing,
+    deleteDrawing,
+    clearDrawings,
     setViewport,
     setFullDiagram,
     loadTemplate,
@@ -107,19 +262,32 @@ export function SystemDesignCanvas({
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
+  // Tools & Selection
+  const [activeTool, setActiveTool] = useState<CanvasTool>("select");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
   const [connectingFromId, setConnectingFromId] = useState<string | null>(null);
-  const [activeTool, setActiveTool] = useState<"select" | "connect">("select");
   const [editingNode, setEditingNode] = useState<SystemNode | null>(null);
+
+  // Dialogs & Menus
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
+  const [insertMenuOpen, setInsertMenuOpen] = useState(false);
 
-  // Dragging state
+  // Freehand Drawing State
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [currentStroke, setCurrentStroke] = useState<SystemDrawing | null>(null);
+  const [drawColor, setDrawColor] = useState<string>("#a855f7");
+  const [drawWidth, setDrawWidth] = useState<number>(3);
+  const [drawMode, setDrawMode] = useState<"pen" | "highlighter">("pen");
+  const [isPointerDown, setIsPointerDown] = useState(false);
+
+  // Dragging Node state
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // Handle keydown delete
+  // Keyboard Shortcuts (matching Eraser.io)
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -131,16 +299,38 @@ export function SystemDesignCanvas({
         } else if (selectedEdgeId) {
           deleteEdge(selectedEdgeId);
           setSelectedEdgeId(null);
+        } else if (selectedDrawingId) {
+          deleteDrawing(selectedDrawingId);
+          setSelectedDrawingId(null);
         }
       } else if (e.key.toLowerCase() === "v") {
         setActiveTool("select");
-      } else if (e.key.toLowerCase() === "c") {
+      } else if (e.key.toLowerCase() === "p" || e.key.toLowerCase() === "d") {
+        setActiveTool("draw");
+      } else if (e.key.toLowerCase() === "e") {
+        setActiveTool("eraser");
+      } else if (e.key.toLowerCase() === "r") {
+        setActiveTool("rectangle");
+      } else if (e.key.toLowerCase() === "o") {
+        setActiveTool("circle");
+      } else if (e.key.toLowerCase() === "a" || e.key.toLowerCase() === "c") {
         setActiveTool("connect");
+      } else if (e.key.toLowerCase() === "t") {
+        setActiveTool("text");
+      } else if (e.key.toLowerCase() === "f" || e.key.toLowerCase() === "g") {
+        setActiveTool("group");
+      } else if (e.key.toLowerCase() === "j") {
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          setAiModalOpen(true);
+        } else {
+          setInsertMenuOpen((prev) => !prev);
+        }
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedNodeId, selectedEdgeId, canWrite, deleteNode, deleteEdge]);
+  }, [selectedNodeId, selectedEdgeId, selectedDrawingId, canWrite, deleteNode, deleteEdge, deleteDrawing]);
 
   // Mouse wheel zoom
   const handleWheel = (e: React.WheelEvent) => {
@@ -158,19 +348,134 @@ export function SystemDesignCanvas({
     }
   };
 
-  // Canvas Pan Handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Only pan if clicking canvas background directly
+  // Canvas Pointer Handlers (Draw, Erase, Pan, Place Shapes)
+  const handleCanvasPointerDown = (e: React.PointerEvent) => {
+    setIsPointerDown(true);
+
+    const canvasX = Math.round((e.clientX - pan.x) / zoom);
+    const canvasY = Math.round((e.clientY - pan.y) / zoom);
+
+    // 1. FREEHAND DRAW TOOL
+    if (activeTool === "draw" && canWrite) {
+      setIsDrawing(true);
+      setCurrentStroke({
+        id: `draw-${Date.now()}`,
+        points: [{ x: canvasX, y: canvasY }],
+        color: drawColor,
+        strokeWidth: drawMode === "highlighter" ? 14 : drawWidth,
+        tool: drawMode,
+      });
+      return;
+    }
+
+    // 2. ERASER TOOL: click on canvas does nothing or erases
+    if (activeTool === "eraser") {
+      return;
+    }
+
+    // 3. RECTANGLE TOOL (Eraser-style quick shape)
+    if (activeTool === "rectangle" && canWrite) {
+      const id = `node-${Date.now()}`;
+      addNode({
+        id,
+        type: "service",
+        label: "New Service Worker",
+        sublabel: "Microservice / API",
+        technology: "SERVICE",
+        color: "violet",
+        x: canvasX - 100,
+        y: canvasY - 40,
+        width: 200,
+        height: 80,
+      });
+      setSelectedNodeId(id);
+      setActiveTool("select");
+      return;
+    }
+
+    // 4. CIRCLE / DATABASE TOOL
+    if (activeTool === "circle" && canWrite) {
+      const id = `node-${Date.now()}`;
+      addNode({
+        id,
+        type: "database",
+        label: "Primary Database",
+        sublabel: "State Persistence",
+        technology: "DATABASE",
+        color: "emerald",
+        x: canvasX - 95,
+        y: canvasY - 45,
+        width: 190,
+        height: 90,
+      });
+      setSelectedNodeId(id);
+      setActiveTool("select");
+      return;
+    }
+
+    // 5. TEXT / ARCHITECTURE NOTE TOOL
+    if (activeTool === "text" && canWrite) {
+      const id = `node-${Date.now()}`;
+      addNode({
+        id,
+        type: "text",
+        label: "Architecture Note",
+        sublabel: "Double-click to edit description",
+        technology: "NOTE",
+        color: "zinc",
+        x: canvasX - 100,
+        y: canvasY - 35,
+        width: 200,
+        height: 70,
+      });
+      setSelectedNodeId(id);
+      setActiveTool("select");
+      return;
+    }
+
+    // 6. ARCHITECTURE CONTAINER / GROUP TOOL
+    if (activeTool === "group" && canWrite) {
+      const id = `grp-${Date.now()}`;
+      addGroup({
+        id,
+        label: "New Subnet / VPC Cluster",
+        x: canvasX - 220,
+        y: canvasY - 160,
+        width: 440,
+        height: 320,
+        color: "zinc",
+      });
+      setActiveTool("select");
+      return;
+    }
+
+    // 7. SELECT / PAN BACKGROUND
     if (e.target === containerRef.current || (e.target as HTMLElement).dataset.canvasBg) {
       setSelectedNodeId(null);
       setSelectedEdgeId(null);
+      setSelectedDrawingId(null);
       setConnectingFromId(null);
       setIsPanning(true);
       setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleCanvasPointerMove = (e: React.PointerEvent) => {
+    // Live freehand drawing points
+    if (isDrawing && currentStroke && canWrite) {
+      const canvasX = Math.round((e.clientX - pan.x) / zoom);
+      const canvasY = Math.round((e.clientY - pan.y) / zoom);
+      setCurrentStroke((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          points: [...prev.points, { x: canvasX, y: canvasY }],
+        };
+      });
+      return;
+    }
+
+    // Canvas panning
     if (isPanning) {
       const nextPan = { x: e.clientX - panStart.x, y: e.clientY - panStart.y };
       setPan(nextPan);
@@ -185,22 +490,40 @@ export function SystemDesignCanvas({
     }
   };
 
-  const handleMouseUp = () => {
+  const handleCanvasPointerUp = () => {
+    setIsPointerDown(false);
+
+    // Commit completed freehand stroke to Yjs CRDT
+    if (isDrawing && currentStroke && canWrite) {
+      if (currentStroke.points.length > 1) {
+        addDrawing(currentStroke);
+      }
+      setIsDrawing(false);
+      setCurrentStroke(null);
+    }
+
     setIsPanning(false);
     setDraggedNodeId(null);
   };
 
-  // Node Drag Start
+  // Node Drag Start & Eraser/Connect interaction
   const handleNodeMouseDown = (e: React.MouseEvent, node: SystemNode) => {
     e.stopPropagation();
+
+    // Eraser Tool deletes node directly
+    if (activeTool === "eraser" && canWrite) {
+      deleteNode(node.id);
+      return;
+    }
+
     setSelectedNodeId(node.id);
     setSelectedEdgeId(null);
+    setSelectedDrawingId(null);
 
     if (activeTool === "connect") {
       if (!connectingFromId) {
         setConnectingFromId(node.id);
       } else if (connectingFromId !== node.id) {
-        // Connect them!
         addEdge({
           id: `edge-${Date.now()}`,
           from: connectingFromId,
@@ -240,6 +563,8 @@ export function SystemDesignCanvas({
       cloud: { label: "Cloud Service", sublabel: "Managed Cloud Provider", color: "rose" },
       container: { label: "Docker Container", sublabel: "K8s Pod", color: "blue" },
       text: { label: "Architecture Note", sublabel: "Design annotation", color: "zinc" },
+      rectangle: { label: "Service Block", sublabel: "Process Component", color: "violet" },
+      circle: { label: "State Store", sublabel: "Distributed Cache", color: "emerald" },
     };
 
     const cfg = labels[type] ?? labels.service;
@@ -256,22 +581,7 @@ export function SystemDesignCanvas({
       height: 85,
     });
     setSelectedNodeId(id);
-  };
-
-  const handleAddGroup = () => {
-    if (!canWrite) return;
-    const id = `grp-${Date.now()}`;
-    const x = Math.round((100 - pan.x) / zoom);
-    const y = Math.round((100 - pan.y) / zoom);
-    addGroup({
-      id,
-      label: "New Architecture Subnet / Cluster",
-      x,
-      y,
-      width: 480,
-      height: 350,
-      color: "zinc",
-    });
+    setInsertMenuOpen(false);
   };
 
   // Auto-Layout Algorithm
@@ -280,7 +590,6 @@ export function SystemDesignCanvas({
     const nodes = [...diagram.nodes];
     if (nodes.length === 0) return;
 
-    // Group nodes by role / type
     const tiers: Record<string, SystemNode[]> = {
       client: [],
       gateway: [],
@@ -292,51 +601,49 @@ export function SystemDesignCanvas({
     nodes.forEach((n) => {
       if (n.type === "client") tiers.client.push(n);
       else if (n.type === "gateway") tiers.gateway.push(n);
-      else if (n.type === "service") tiers.service.push(n);
+      else if (n.type === "service" || n.type === "rectangle") tiers.service.push(n);
       else if (n.type === "queue") tiers.queue.push(n);
       else tiers.database.push(n);
     });
 
     const tierOrder = ["client", "gateway", "service", "queue", "database"];
-    let startX = 80;
-    const updatedNodes: SystemNode[] = [];
+    const startX = 80;
+    const startY = 100;
+    const colWidth = 280;
+    const rowHeight = 130;
 
-    tierOrder.forEach((t) => {
-      const groupNodes = tiers[t];
-      if (groupNodes && groupNodes.length > 0) {
-        let startY = 100;
-        groupNodes.forEach((n) => {
-          updatedNodes.push({
-            ...n,
-            x: startX,
-            y: startY,
+    let colIndex = 0;
+    tierOrder.forEach((tier) => {
+      const tierNodes = tiers[tier];
+      if (tierNodes && tierNodes.length > 0) {
+        tierNodes.forEach((n, rowIndex) => {
+          updateNode(n.id, {
+            x: startX + colIndex * colWidth,
+            y: startY + rowIndex * rowHeight,
           });
-          startY += 120;
         });
-        startX += 290;
+        colIndex++;
       }
     });
-
-    setFullDiagram({
-      ...diagram,
-      nodes: updatedNodes,
-      viewport: { x: 50, y: 50, zoom: 0.85 },
-    });
-    setPan({ x: 50, y: 50 });
-    setZoom(0.85);
   };
 
   return (
     <div
       ref={containerRef}
-      onWheel={handleWheel}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
       data-canvas-bg="true"
+      onPointerDown={handleCanvasPointerDown}
+      onPointerMove={handleCanvasPointerMove}
+      onPointerUp={handleCanvasPointerUp}
+      onPointerLeave={handleCanvasPointerUp}
+      onWheel={handleWheel}
       className={cn(
-        "relative flex h-full w-full select-none overflow-hidden bg-[#0d0f12] text-foreground font-sans",
-        isPanning ? "cursor-grab active:cursor-grabbing" : "cursor-default",
+        "relative h-full w-full select-none overflow-hidden bg-[#090a0f]",
+        activeTool === "draw" && "cursor-crosshair",
+        activeTool === "eraser" && "cursor-cell",
+        activeTool === "rectangle" && "cursor-crosshair",
+        activeTool === "circle" && "cursor-crosshair",
+        activeTool === "text" && "cursor-text",
+        activeTool === "select" && (isPanning ? "cursor-grabbing" : "cursor-default"),
         className,
       )}
       style={{
@@ -345,8 +652,89 @@ export function SystemDesignCanvas({
         backgroundPosition: `${pan.x}px ${pan.y}px`,
       }}
     >
-      {/* ── Left Floating Eraser-Style Tool Palette ──────────────────────── */}
+      {/* ── Left Floating Eraser-Style Tool Palette (Exact Eraser.io matching) ── */}
       <div className="absolute top-4 left-4 z-30 flex flex-col gap-1 rounded-2xl border border-zinc-800/90 bg-zinc-900/95 p-1.5 shadow-2xl backdrop-blur-md">
+        {/* + Insert Menu */}
+        <div className="relative">
+          <button
+            type="button"
+            title="Insert Architecture Component (J)"
+            onClick={() => setInsertMenuOpen(!insertMenuOpen)}
+            className="flex size-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+          >
+            <Plus className="size-4.5" />
+          </button>
+
+          {insertMenuOpen && (
+            <div className="absolute top-0 left-12 z-50 flex w-64 flex-col rounded-2xl border border-zinc-800 bg-zinc-950/95 p-2 shadow-2xl backdrop-blur-md">
+              <p className="px-2 py-1 text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
+                Add Architecture Component
+              </p>
+              <button
+                type="button"
+                onClick={() => handleAddService("service")}
+                className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
+              >
+                <Server className="size-4 text-violet-400" />
+                <span>Microservice Worker</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddService("database")}
+                className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
+              >
+                <Database className="size-4 text-emerald-400" />
+                <span>PostgreSQL / Database</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddService("queue")}
+                className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
+              >
+                <MessageSquare className="size-4 text-amber-400" />
+                <span>Kafka Event Broker</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddService("storage")}
+                className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
+              >
+                <HardDrive className="size-4 text-cyan-400" />
+                <span>S3 Storage / Bucket</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddService("gateway")}
+                className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
+              >
+                <Shield className="size-4 text-sky-400" />
+                <span>API Gateway / Proxy</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAddService("client")}
+                className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
+              >
+                <Globe className="size-4 text-zinc-400" />
+                <span>Web / Mobile Client</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Eraser AI */}
+        <button
+          type="button"
+          title="Eraser AI: Generate System Design (Ctrl+J)"
+          onClick={() => setAiModalOpen(true)}
+          className="flex size-9 items-center justify-center rounded-xl bg-violet-600/20 text-violet-400 transition-colors hover:bg-violet-600 hover:text-white"
+        >
+          <Sparkles className="size-4.5" />
+        </button>
+
+        <span className="my-1 h-px w-full bg-zinc-800" />
+
+        {/* Select / Move Tool (V) */}
         <button
           type="button"
           title="Select / Move Tool (V)"
@@ -359,9 +747,36 @@ export function SystemDesignCanvas({
           <MousePointer className="size-4.5" />
         </button>
 
+        {/* Rectangle Shape Tool (R) */}
         <button
           type="button"
-          title="Connect Components with Arrow (C)"
+          title="Rectangle / Service Shape (R)"
+          onClick={() => setActiveTool("rectangle")}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white",
+            activeTool === "rectangle" && "bg-primary text-white hover:bg-primary",
+          )}
+        >
+          <Square className="size-4.5" />
+        </button>
+
+        {/* Circle / Database Shape Tool (O) */}
+        <button
+          type="button"
+          title="Circle / Database Shape (O)"
+          onClick={() => setActiveTool("circle")}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white",
+            activeTool === "circle" && "bg-primary text-white hover:bg-primary",
+          )}
+        >
+          <Circle className="size-4.5" />
+        </button>
+
+        {/* Connector Arrow Tool (A / C) */}
+        <button
+          type="button"
+          title="Connect Components with Arrow (A or C)"
           onClick={() => {
             setActiveTool("connect");
             setConnectingFromId(null);
@@ -371,53 +786,64 @@ export function SystemDesignCanvas({
             activeTool === "connect" && "bg-primary text-white hover:bg-primary",
           )}
         >
-          <ArrowRight className="size-4.5" />
+          <ArrowUpRight className="size-4.5" />
         </button>
 
-        <span className="my-1 h-px w-full bg-zinc-800" />
-
+        {/* Manual Draw / Pen Tool (P or D) */}
         <button
           type="button"
-          title="Add Service / Worker (R)"
-          onClick={() => handleAddService("service")}
-          disabled={!canWrite}
-          className="flex size-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+          title="Draw / Pen Tool (P or D) - Sketch manually"
+          onClick={() => setActiveTool("draw")}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white",
+            activeTool === "draw" && "bg-violet-600 text-white hover:bg-violet-600 shadow-md",
+          )}
         >
-          <Server className="size-4.5" />
+          <Pencil className="size-4.5" />
         </button>
 
+        {/* Eraser Tool (E) */}
         <button
           type="button"
-          title="Add Database (D)"
-          onClick={() => handleAddService("database")}
-          disabled={!canWrite}
-          className="flex size-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+          title="Eraser Tool (E) - Click or swipe to erase drawings and items"
+          onClick={() => setActiveTool("eraser")}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white",
+            activeTool === "eraser" && "bg-rose-600 text-white hover:bg-rose-600 shadow-md animate-pulse",
+          )}
         >
-          <Database className="size-4.5" />
+          <Eraser className="size-4.5" />
         </button>
 
+        {/* Text / Note Tool (T) */}
         <button
           type="button"
-          title="Add Message Queue / Kafka (Q)"
-          onClick={() => handleAddService("queue")}
-          disabled={!canWrite}
-          className="flex size-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+          title="Text Note / Sticky (T)"
+          onClick={() => setActiveTool("text")}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white",
+            activeTool === "text" && "bg-primary text-white hover:bg-primary",
+          )}
         >
-          <MessageSquare className="size-4.5" />
+          <Type className="size-4.5" />
         </button>
 
+        {/* Container / Subnet Frame (F) */}
         <button
           type="button"
-          title="Add Architecture Container / VPC Boundary (G)"
-          onClick={handleAddGroup}
-          disabled={!canWrite}
-          className="flex size-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+          title="Architecture Container / Subnet Boundary (F)"
+          onClick={() => setActiveTool("group")}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-xl text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white",
+            activeTool === "group" && "bg-primary text-white hover:bg-primary",
+          )}
         >
           <Box className="size-4.5" />
         </button>
 
         <span className="my-1 h-px w-full bg-zinc-800" />
 
+        {/* Auto Layout */}
         <button
           type="button"
           title="Auto Layout Diagram"
@@ -427,16 +853,128 @@ export function SystemDesignCanvas({
         >
           <LayoutGrid className="size-4.5" />
         </button>
-
-        <button
-          type="button"
-          title="Eraser AI: Generate System Design from Prompt"
-          onClick={() => setAiModalOpen(true)}
-          className="flex size-9 items-center justify-center rounded-xl bg-violet-600/20 text-violet-400 transition-colors hover:bg-violet-600 hover:text-white"
-        >
-          <Sparkles className="size-4.5" />
-        </button>
       </div>
+
+      {/* ── Floating Sub-Palette for Draw Tool (Colors, Stroke Width, Mode) ─ */}
+      {activeTool === "draw" && (
+        <div className="absolute top-4 left-18 z-30 flex items-center gap-2 rounded-2xl border border-zinc-800/90 bg-zinc-900/95 px-3 py-1.5 shadow-2xl backdrop-blur-md">
+          {/* Pen vs Highlighter */}
+          <div className="flex items-center rounded-xl bg-zinc-800/80 p-0.5">
+            <button
+              type="button"
+              onClick={() => setDrawMode("pen")}
+              className={cn(
+                "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+                drawMode === "pen"
+                  ? "bg-violet-600 text-white shadow-sm"
+                  : "text-zinc-400 hover:text-white",
+              )}
+            >
+              Pen
+            </button>
+            <button
+              type="button"
+              onClick={() => setDrawMode("highlighter")}
+              className={cn(
+                "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+                drawMode === "highlighter"
+                  ? "bg-violet-600 text-white shadow-sm"
+                  : "text-zinc-400 hover:text-white",
+              )}
+            >
+              Highlighter
+            </button>
+          </div>
+
+          <span className="h-4 w-px bg-zinc-700/80" />
+
+          {/* Color Swatches */}
+          <div className="flex items-center gap-1.5">
+            {DRAW_PALETTE.map((c) => (
+              <button
+                key={c.color}
+                type="button"
+                title={c.label}
+                onClick={() => setDrawColor(c.color)}
+                className={cn(
+                  "size-5.5 rounded-full border border-black/40 transition-transform hover:scale-115",
+                  drawColor === c.color && "scale-115 ring-2 ring-violet-400 ring-offset-1 ring-offset-zinc-900",
+                )}
+                style={{ backgroundColor: c.color }}
+              />
+            ))}
+          </div>
+
+          <span className="h-4 w-px bg-zinc-700/80" />
+
+          {/* Stroke Widths */}
+          <div className="flex items-center gap-1">
+            {[
+              { w: 2, label: "Fine" },
+              { w: 4, label: "Medium" },
+              { w: 7, label: "Bold" },
+            ].map((item) => (
+              <button
+                key={item.w}
+                type="button"
+                title={item.label}
+                onClick={() => setDrawWidth(item.w)}
+                className={cn(
+                  "flex size-7 items-center justify-center rounded-lg text-xs font-semibold transition-colors",
+                  drawWidth === item.w
+                    ? "bg-zinc-700 text-white shadow-xs"
+                    : "text-zinc-400 hover:bg-zinc-800/80 hover:text-white",
+                )}
+              >
+                <span
+                  className="rounded-full bg-current"
+                  style={{ width: item.w * 1.5, height: item.w * 1.5 }}
+                />
+              </button>
+            ))}
+          </div>
+
+          {(diagram.drawings?.length ?? 0) > 0 && (
+            <>
+              <span className="h-4 w-px bg-zinc-700/80" />
+              <button
+                type="button"
+                title="Clear all manual drawings"
+                onClick={clearDrawings}
+                className="flex size-7 items-center justify-center rounded-lg text-rose-400 hover:bg-rose-500/20"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Active Eraser Tool Notice ────────────────────────────────────── */}
+      {activeTool === "eraser" && (
+        <div className="absolute top-4 left-18 z-30 flex items-center gap-2 rounded-2xl border border-rose-500/50 bg-rose-950/80 px-3.5 py-1.5 shadow-2xl backdrop-blur-md">
+          <Eraser className="size-4 text-rose-300 animate-pulse" />
+          <span className="text-xs font-semibold text-rose-200">
+            Eraser Tool: Click or drag over drawings, connectors, or components to erase them
+          </span>
+        </div>
+      )}
+
+      {/* ── Active Connect Tool Hint ────────────────────────────────────── */}
+      {activeTool === "connect" && (
+        <div className="absolute bottom-5 left-1/2 z-30 -translate-x-1/2 rounded-full border border-violet-500/50 bg-violet-950/90 px-4 py-1.5 text-xs font-semibold text-violet-200 shadow-2xl backdrop-blur-md">
+          {connectingFromId
+            ? "Click target component to complete arrow connection"
+            : "Click source component to start arrow connection"}
+        </div>
+      )}
+
+      {/* ── Active Quick-Place Shape Hint ────────────────────────────────── */}
+      {(activeTool === "rectangle" || activeTool === "circle" || activeTool === "text" || activeTool === "group") && (
+        <div className="absolute bottom-5 left-1/2 z-30 -translate-x-1/2 rounded-full border border-sky-500/50 bg-sky-950/90 px-4 py-1.5 text-xs font-semibold text-sky-200 shadow-2xl backdrop-blur-md">
+          Click anywhere on canvas to place {activeTool}
+        </div>
+      )}
 
       {/* ── Top-Right Header Bar: AI Generator, Templates & Zoom Controls ──── */}
       <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
@@ -449,6 +987,7 @@ export function SystemDesignCanvas({
           Eraser AI
         </Button>
 
+        {/* Templates Dropdown */}
         <div className="relative">
           <Button
             variant="outline"
@@ -484,6 +1023,18 @@ export function SystemDesignCanvas({
             </div>
           )}
         </div>
+
+        {/* Export SVG */}
+        <Button
+          variant="outline"
+          size="sm"
+          title="Export Architecture Diagram as SVG"
+          onClick={() => exportDiagramAsSvg(diagram)}
+          className="h-9 gap-1.5 rounded-xl border-zinc-800 bg-zinc-900/90 text-xs font-semibold text-zinc-300 shadow-lg backdrop-blur-md hover:bg-zinc-800 hover:text-white"
+        >
+          <Download className="size-3.5" />
+          Export
+        </Button>
 
         {/* Zoom Controls */}
         <div className="flex items-center gap-1 rounded-xl border border-zinc-800/90 bg-zinc-900/90 p-1 shadow-lg backdrop-blur-md">
@@ -528,15 +1079,6 @@ export function SystemDesignCanvas({
         </div>
       </div>
 
-      {/* ── Active Connect Tool Hint ────────────────────────────────────── */}
-      {activeTool === "connect" && (
-        <div className="absolute bottom-5 left-1/2 z-30 -translate-x-1/2 rounded-full border border-violet-500/50 bg-violet-950/90 px-4 py-1.5 text-xs font-semibold text-violet-200 shadow-2xl backdrop-blur-md">
-          {connectingFromId
-            ? "Click target component to complete arrow connection"
-            : "Click source component to start arrow connection"}
-        </div>
-      )}
-
       {/* ── Main Canvas Viewport (Transformed by pan & zoom) ─────────────── */}
       <div
         className="absolute inset-0 origin-top-left"
@@ -544,8 +1086,8 @@ export function SystemDesignCanvas({
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
         }}
       >
-        {/* SVG Connectors Layer */}
-        <svg className="pointer-events-none absolute inset-0 h-[5000px] w-[5000px] overflow-visible">
+        {/* SVG Connectors & Freehand Drawings Layer */}
+        <svg className="pointer-events-none absolute inset-0 h-[6000px] w-[6000px] overflow-visible">
           <defs>
             <marker
               id="arrowhead"
@@ -569,18 +1111,80 @@ export function SystemDesignCanvas({
             </marker>
           </defs>
 
+          {/* 1. Freehand Manual Drawings (CRDT Synced) */}
+          {diagram.drawings?.map((drawing) => {
+            const pathD = pointsToSvgPath(drawing.points);
+            const isSelected = selectedDrawingId === drawing.id;
+            return (
+              <g
+                key={drawing.id}
+                className={cn(
+                  "pointer-events-auto cursor-pointer transition-opacity",
+                  activeTool === "eraser" && "hover:opacity-30",
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (activeTool === "eraser" && canWrite) {
+                    deleteDrawing(drawing.id);
+                  } else {
+                    setSelectedDrawingId(drawing.id);
+                    setSelectedNodeId(null);
+                    setSelectedEdgeId(null);
+                  }
+                }}
+                onPointerEnter={() => {
+                  if (activeTool === "eraser" && isPointerDown && canWrite) {
+                    deleteDrawing(drawing.id);
+                  }
+                }}
+              >
+                {/* Thick hit target for easy clicking and erasing */}
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={Math.max(24, drawing.strokeWidth * 4)}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {/* Visible stroke */}
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke={isSelected ? "#818cf8" : drawing.color}
+                  strokeWidth={drawing.strokeWidth}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity={drawing.tool === "highlighter" ? 0.45 : 1}
+                />
+              </g>
+            );
+          })}
+
+          {/* 2. In-Progress Freehand Stroke (Live) */}
+          {currentStroke && (
+            <path
+              d={pointsToSvgPath(currentStroke.points)}
+              fill="none"
+              stroke={currentStroke.color}
+              strokeWidth={currentStroke.strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={currentStroke.tool === "highlighter" ? 0.45 : 1}
+            />
+          )}
+
+          {/* 3. Connectors & Edges */}
           {diagram.edges.map((edge) => {
             const fromNode = diagram.nodes.find((n) => n.id === edge.from);
             const toNode = diagram.nodes.find((n) => n.id === edge.to);
             if (!fromNode || !toNode) return null;
 
-            // Compute connection points (center-to-center or edge intersection)
             const x1 = fromNode.x + fromNode.width / 2;
             const y1 = fromNode.y + fromNode.height / 2;
             const x2 = toNode.x + toNode.width / 2;
             const y2 = toNode.y + toNode.height / 2;
 
-            // Bezier control offset
             const dx = x2 - x1;
             const dy = y2 - y1;
             const cx1 = x1 + dx * 0.45;
@@ -596,11 +1200,24 @@ export function SystemDesignCanvas({
             return (
               <g
                 key={edge.id}
-                className="pointer-events-auto cursor-pointer"
+                className={cn(
+                  "pointer-events-auto cursor-pointer",
+                  activeTool === "eraser" && "hover:opacity-30",
+                )}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setSelectedEdgeId(edge.id);
-                  setSelectedNodeId(null);
+                  if (activeTool === "eraser" && canWrite) {
+                    deleteEdge(edge.id);
+                  } else {
+                    setSelectedEdgeId(edge.id);
+                    setSelectedNodeId(null);
+                    setSelectedDrawingId(null);
+                  }
+                }}
+                onPointerEnter={() => {
+                  if (activeTool === "eraser" && isPointerDown && canWrite) {
+                    deleteEdge(edge.id);
+                  }
                 }}
               >
                 {/* Thick invisible hit target for easier clicking */}
@@ -662,6 +1279,12 @@ export function SystemDesignCanvas({
           return (
             <div
               key={group.id}
+              onClick={(e) => {
+                if (activeTool === "eraser" && canWrite) {
+                  e.stopPropagation();
+                  deleteGroup(group.id);
+                }
+              }}
               style={{
                 transform: `translate(${group.x}px, ${group.y}px)`,
                 width: `${group.width}px`,
@@ -670,6 +1293,7 @@ export function SystemDesignCanvas({
               className={cn(
                 "group/grp absolute rounded-2xl border-2 border-dashed bg-zinc-950/40 p-3 transition-colors",
                 colorCfg.border,
+                activeTool === "eraser" && "hover:border-rose-500 hover:bg-rose-950/20 cursor-cell",
               )}
             >
               <div className="flex items-center justify-between">
@@ -681,7 +1305,10 @@ export function SystemDesignCanvas({
                   <button
                     type="button"
                     title="Delete group"
-                    onClick={() => deleteGroup(group.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteGroup(group.id);
+                    }}
                     className="rounded p-1 text-zinc-500 opacity-0 transition-opacity hover:bg-zinc-800 hover:text-rose-400 group-hover/grp:opacity-100"
                   >
                     <Trash2 className="size-3" />
@@ -714,6 +1341,7 @@ export function SystemDesignCanvas({
                 colorCfg.border,
                 isSelected && `ring-2 ${colorCfg.ring} border-white shadow-2xl`,
                 isConnectingSource && "ring-3 ring-violet-500 border-violet-400 animate-pulse",
+                activeTool === "eraser" && "hover:border-rose-500 hover:bg-rose-950/40 cursor-cell",
               )}
             >
               {/* Header */}

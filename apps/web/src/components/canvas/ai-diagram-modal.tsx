@@ -198,6 +198,7 @@ export function generateClientDiagramFromPrompt(promptText: string): DiagramMode
       version: 1,
       title: "Video Streaming & Transcoding Pipeline",
       viewport: { x: 30, y: 30, zoom: 0.8 },
+      drawings: [],
       groups: [
         { id: "grp-edge", label: "Edge & CDN Distribution", x: 40, y: 60, width: 280, height: 380, color: "cyan" },
         { id: "grp-core", label: "Transcoding & Stream Processing", x: 370, y: 60, width: 500, height: 380, color: "violet" },
@@ -229,6 +230,7 @@ export function generateClientDiagramFromPrompt(promptText: string): DiagramMode
       version: 1,
       title: "Enterprise RAG AI Architecture",
       viewport: { x: 30, y: 30, zoom: 0.8 },
+      drawings: [],
       groups: [
         { id: "grp-ingest", label: "Query & Ingestion Layer", x: 40, y: 60, width: 300, height: 380, color: "blue" },
         { id: "grp-rag", label: "Retrieval Augmented Generation (RAG)", x: 390, y: 60, width: 500, height: 380, color: "violet" },
@@ -260,6 +262,7 @@ export function generateClientDiagramFromPrompt(promptText: string): DiagramMode
     version: 1,
     title: promptText || "Custom System Design Architecture",
     viewport: { x: 30, y: 30, zoom: 0.8 },
+    drawings: [],
     groups: [
       { id: "grp-clients", label: "Client Ingress Tier", x: 40, y: 60, width: 280, height: 380, color: "blue" },
       { id: "grp-services", label: "Business Services Mesh", x: 370, y: 60, width: 500, height: 380, color: "violet" },
