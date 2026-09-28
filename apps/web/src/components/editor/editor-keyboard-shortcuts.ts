@@ -42,6 +42,8 @@ function toProseMirrorKey(shortcut: ShortcutDefinition): string | null {
 
 /** ProseMirror key string → the Tiptap command it runs. */
 export const COMMANDS: Record<string, string> = {
+  undo: "undo",
+  redo: "redo",
   bold: "toggleBold",
   italic: "toggleItalic",
   underline: "toggleUnderline",

@@ -140,6 +140,20 @@ export const SHORTCUTS: ShortcutDefinition[] = [
     scope: EDITOR,
   },
   {
+    id: "undo",
+    label: "Undo",
+    group: "document",
+    keys: ["mod", "z"],
+    scope: EDITOR,
+  },
+  {
+    id: "redo",
+    label: "Redo",
+    group: "document",
+    keys: ["mod", "shift", "z"],
+    scope: EDITOR,
+  },
+  {
     id: "taskList",
     label: "Task list",
     group: "blocks",

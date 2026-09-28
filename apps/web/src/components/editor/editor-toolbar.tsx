@@ -3,6 +3,8 @@
 import type { Editor } from "@tiptap/react";
 import { useEditorState } from "@tiptap/react";
 import {
+  Undo2,
+  Redo2,
   Bold,
   Italic,
   Strikethrough,
@@ -31,6 +33,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useIsMac } from "@/lib/keyboard/use-is-mac";
 import { Button } from "@/components/ui/button";
 import { LinkPopover } from "@/components/editor/link-popover";
 import { ColorPickerPopover } from "@/components/editor/color-picker-popover";
@@ -207,17 +210,22 @@ const BLOCKS: BlockItem[] = [
 ];
 
 export function EditorToolbar({ editor }: EditorToolbarProps) {
+  const isMac = useIsMac();
   const compact = useMediaQuery("(max-width: 767px)");
 
   // one boolean per item, recomputed only when the editor state changes
   const activeStates = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
+      canUndo: e.can().undo(),
+      canRedo: e.can().redo(),
       marks: MARKS.map((item) => item.isActive(e)),
       blocks: BLOCKS.map((item) => item.isActive(e)),
     }),
   });
 
+  const canUndo = activeStates?.canUndo ?? false;
+  const canRedo = activeStates?.canRedo ?? false;
   const activeBlockIndex = activeStates?.blocks.findIndex(Boolean) ?? -1;
   const currentBlock =
     activeBlockIndex >= 0 ? BLOCKS[activeBlockIndex]! : BLOCKS[0]!;
@@ -233,6 +241,33 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       aria-orientation="horizontal"
       className="sticky top-14 z-20 flex items-center gap-1 rounded-xl border border-border bg-card/90 p-1 shadow-sm backdrop-blur-md transition-colors supports-[backdrop-filter]:bg-card/75"
     >
+      {/* ── History (Undo / Redo) ── */}
+      <div className="flex items-center gap-0.5">
+        <TooltipButton
+          label="Undo"
+          shortcut={isMac ? ["⌘", "Z"] : ["Ctrl", "Z"]}
+          disabled={!canUndo}
+          onClick={() => editor.chain().focus().undo().run()}
+          aria-label="Undo"
+          className="size-7"
+        >
+          <Undo2 aria-hidden className="size-3.5" />
+        </TooltipButton>
+
+        <TooltipButton
+          label="Redo"
+          shortcut={isMac ? ["⌘", "⇧", "Z"] : ["Ctrl", "Y"]}
+          disabled={!canRedo}
+          onClick={() => editor.chain().focus().redo().run()}
+          aria-label="Redo"
+          className="size-7"
+        >
+          <Redo2 aria-hidden className="size-3.5" />
+        </TooltipButton>
+      </div>
+
+      <ToolbarDivider />
+
       {/* ── Block type: reports the current block, changes the next one ── */}
       <Popover>
         <PopoverTrigger
