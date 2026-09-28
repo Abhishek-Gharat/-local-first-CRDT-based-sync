@@ -4,6 +4,7 @@ import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
 import * as Y from "yjs";
+import { UndoGranularity } from "@/lib/editor/undo-granularity-extension";
 import { shortcutsForScope } from "@/lib/keyboard/shortcuts";
 import { COMMANDS } from "@/components/editor/editor-keyboard-shortcuts";
 
@@ -37,6 +38,83 @@ describe("collaboration undo/redo", () => {
     expect(editor.getText()).toBe("Hello collaborative world");
     expect(editor.can().undo()).toBe(true);
     expect(editor.can().redo()).toBe(false);
+
+    editor.destroy();
+  });
+
+  it("undoes and redoes word by word when UndoGranularity is active", () => {
+    const doc = new Y.Doc();
+    const editor = new Editor({
+      extensions: [
+        StarterKit.configure({ undoRedo: false }),
+        Collaboration.configure({ document: doc }),
+        UndoGranularity,
+      ],
+    });
+
+    // Simulate typing "Hello world" word by word:
+    // 1. Type "Hello"
+    editor.commands.insertContent("Hello");
+    // 2. Type " " (space boundary)
+    editor.commands.insertContent(" ");
+    // 3. Type "world"
+    editor.commands.insertContent("world");
+
+    expect(editor.getText()).toBe("Hello world");
+
+    // First undo should undo ONLY "world", NOT the whole line!
+    editor.commands.undo();
+    expect(editor.getText()).toBe("Hello ");
+
+    // Second undo should undo "Hello "
+    editor.commands.undo();
+    expect(editor.getText()).toBe("");
+
+    // First redo should restore "Hello "
+    editor.commands.redo();
+    expect(editor.getText()).toBe("Hello ");
+
+    // Second redo should restore "world"
+    editor.commands.redo();
+    expect(editor.getText()).toBe("Hello world");
+
+    editor.destroy();
+  });
+
+  it("handles punctuation and paragraph boundaries as separate undo steps", () => {
+    const doc = new Y.Doc();
+    const editor = new Editor({
+      extensions: [
+        StarterKit.configure({ undoRedo: false }),
+        Collaboration.configure({ document: doc }),
+        UndoGranularity,
+      ],
+    });
+
+    // 1. Type "First"
+    editor.commands.insertContent("First");
+    // 2. Type ", " (comma + space)
+    editor.commands.insertContent(", ");
+    // 3. Type "Second"
+    editor.commands.insertContent("Second");
+
+    expect(editor.getText()).toBe("First, Second");
+
+    // Undo "Second"
+    editor.commands.undo();
+    expect(editor.getText()).toBe("First, ");
+
+    // Undo ", " and "First"
+    editor.commands.undo();
+    expect(editor.getText()).toBe("");
+
+    // Redo restores "First, "
+    editor.commands.redo();
+    expect(editor.getText()).toBe("First, ");
+
+    // Redo restores "Second"
+    editor.commands.redo();
+    expect(editor.getText()).toBe("First, Second");
 
     editor.destroy();
   });

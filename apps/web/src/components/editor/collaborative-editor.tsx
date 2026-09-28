@@ -22,6 +22,7 @@ import { CodeBlockComponent } from "@/components/editor/code-block-view";
 import { requestLinkPopover } from "@/components/editor/link-popover-bridge";
 import { Callout } from "@/lib/editor/callout-extension";
 import { SlashCommand } from "@/lib/editor/slash-command-extension";
+import { UndoGranularity } from "@/lib/editor/undo-granularity-extension";
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
@@ -175,6 +176,7 @@ export function CollaborativeEditor({
       Highlight.configure({ multicolor: true }),
       ...(editable ? [SlashCommand] : []),
       Collaboration.configure({ document: doc }),
+      UndoGranularity,
       ...(awareness ? [CollaborationCursor.configure({ awareness })] : []),
       Placeholder.configure({
         placeholder: editable ? "Type '/' for commands or start writing…" : "",
