@@ -23,6 +23,15 @@ import { CodeBlockComponent } from "@/components/editor/code-block-view";
 import { requestLinkPopover } from "@/components/editor/link-popover-bridge";
 import { Callout } from "@/lib/editor/callout-extension";
 import { SlashCommand } from "@/lib/editor/slash-command-extension";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TextStyle } from "@tiptap/extension-text-style";
+import { Color } from "@tiptap/extension-color";
+import { Highlight } from "@tiptap/extension-highlight";
+import { TableFloatingMenu } from "@/components/editor/table-floating-menu";
+import { ColorPickerPopover } from "@/components/editor/color-picker-popover";
 import { cn } from "@/lib/utils";
 
 const CollaborationCursor = Extension.create<{ awareness: Awareness }>({
@@ -156,6 +165,15 @@ export function CollaborativeEditor({
       TaskList,
       TaskItem.configure({ nested: true }),
       Callout,
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
       ...(editable ? [SlashCommand] : []),
       Collaboration.configure({ document: doc }),
       ...(awareness ? [CollaborationCursor.configure({ awareness })] : []),
@@ -283,6 +301,7 @@ export function CollaborativeEditor({
       {/* Above the canvas, below the toolbar in stacking terms: `sticky` here
           pins it under the app bar while the document scrolls beneath. */}
       {editable && editor && <FindReplaceBar editor={editor} />}
+      {editable && editor && <TableFloatingMenu editor={editor} />}
 
       <EditorContent
         editor={editor}
@@ -357,6 +376,9 @@ export function CollaborativeEditor({
               <item.icon aria-hidden className="size-3.5" />
             </button>
           ))}
+
+          <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
+          <ColorPickerPopover editor={editor} />
         </div>
       )}
     </div>

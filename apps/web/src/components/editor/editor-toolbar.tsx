@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Terminal,
   Lightbulb,
+  Table as TableIcon,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ import {
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "@/components/ui/button";
 import { LinkPopover } from "@/components/editor/link-popover";
+import { ColorPickerPopover } from "@/components/editor/color-picker-popover";
 
 interface EditorToolbarProps {
   editor: Editor;
@@ -189,6 +191,19 @@ const BLOCKS: BlockItem[] = [
     run: (e) => e.chain().focus().toggleTaskList().run(),
     shortcut: ["[]"],
   },
+  {
+    label: "Table",
+    description: "Grid with rows and columns",
+    icon: TableIcon,
+    isActive: (e) => e.isActive("table"),
+    run: (e) =>
+      e
+        .chain()
+        .focus()
+        .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+        .run(),
+    shortcut: ["grid"],
+  },
 ];
 
 export function EditorToolbar({ editor }: EditorToolbarProps) {
@@ -304,6 +319,9 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
             operation (add vs. edit vs. view) rather than a single command —
             and it is the same popover ⌘K opens. */}
         <LinkPopover editor={editor} />
+
+        {/* Text color and background highlighter picker */}
+        <ColorPickerPopover editor={editor} />
       </div>
 
       <ToolbarDivider />

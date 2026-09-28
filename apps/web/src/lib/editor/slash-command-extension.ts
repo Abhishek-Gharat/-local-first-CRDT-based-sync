@@ -17,6 +17,7 @@ import {
   ListOrdered,
   TextQuote,
   Minus,
+  Table as TableIcon,
   type LucideIcon,
 } from "lucide-react";
 import { SlashCommandList, type SlashCommandRef } from "@/components/editor/slash-command-menu";
@@ -155,6 +156,22 @@ export const SLASH_COMMANDS: SlashCommandItem[] = [
     aliases: ["divider", "hr", "separator", "line"],
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).setHorizontalRule().run();
+    },
+  },
+  {
+    title: "Table",
+    description: "Interactive data table with rows & columns",
+    category: "Lists & Structure",
+    icon: TableIcon,
+    badge: "grid",
+    aliases: ["table", "grid", "spreadsheet", "cols", "rows"],
+    command: ({ editor, range }) => {
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+        .run();
     },
   },
 ];
