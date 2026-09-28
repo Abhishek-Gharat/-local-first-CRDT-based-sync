@@ -60,7 +60,7 @@ export function EditableTitle({
 
   if (!canRename) {
     return (
-      <h1 className="text-2xl font-semibold tracking-tight text-balance text-foreground sm:text-3xl">
+      <h1 className="text-3xl font-bold tracking-tight text-balance text-foreground sm:text-4xl lg:text-[2.65rem] lg:leading-[1.12]">
         {title}
       </h1>
     );
@@ -84,7 +84,7 @@ export function EditableTitle({
             setEditing(false);
           }
         }}
-        className="w-full min-w-0 rounded-lg border border-ring/60 bg-background px-2 py-1 text-2xl font-semibold tracking-tight text-foreground outline-none ring-3 ring-ring/25 sm:text-3xl"
+        className="w-full min-w-0 rounded-xl border border-ring/60 bg-background px-3 py-1.5 text-3xl font-bold tracking-tight text-foreground outline-none ring-3 ring-ring/25 sm:text-4xl lg:text-[2.65rem] lg:leading-[1.12]"
       />
     );
   }
@@ -98,22 +98,22 @@ export function EditableTitle({
       }}
       title="Rename document"
       className={cn(
-        "group/title -ml-2 flex min-w-0 items-start gap-2 rounded-lg px-2 py-1 text-left transition-colors",
+        "group/title -ml-3 flex min-w-0 items-start gap-2.5 rounded-xl px-3 py-1.5 text-left transition-colors",
         "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
       )}
     >
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+      <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-[2.65rem] lg:leading-[1.12]">
         {title}
       </h1>
       {saving ? (
         <Loader2
           aria-hidden
-          className="mt-1.5 size-3.5 shrink-0 animate-spin text-muted-foreground"
+          className="mt-2.5 size-4 shrink-0 animate-spin text-muted-foreground"
         />
       ) : (
         <Pencil
           aria-hidden
-          className="mt-1.5 size-3.5 shrink-0 text-muted-foreground/50 opacity-0 transition-opacity group-hover/title:opacity-100 group-focus-visible/title:opacity-100 sm:opacity-0"
+          className="mt-2.5 size-4 shrink-0 text-muted-foreground/50 opacity-0 transition-opacity group-hover/title:opacity-100 group-focus-visible/title:opacity-100 sm:opacity-0"
         />
       )}
       <span className="sr-only">— rename document</span>
