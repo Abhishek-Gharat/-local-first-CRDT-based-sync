@@ -23,6 +23,7 @@ import { CollaborativeEditor } from "@/components/editor/collaborative-editor";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { EditorAppBar } from "@/components/editor/editor-app-bar";
 import { EditorStatusBar } from "@/components/editor/editor-status-bar";
+import { SystemDesignCanvas } from "@/components/canvas/system-design-canvas";
 import {
   EditorBootingState,
   NetworkBanner,
@@ -85,6 +86,7 @@ export function DocumentEditor({
   const [chars, setChars] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"document" | "both" | "canvas">("both");
   const historyRef = useRef<VersionHistoryHandle>(null);
   // The Tiptap instance, published by CollaborativeEditor. Held in state
   // rather than a ref because the export menu needs to know *at render time*
@@ -266,6 +268,8 @@ export function DocumentEditor({
         historyOpen={historyOpen}
         onHistoryOpenChange={setHistoryOpen}
         onShowShortcuts={() => setShortcutsOpen(true)}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
       <KeyboardShortcutsDialog
@@ -277,62 +281,122 @@ export function DocumentEditor({
       <EditorBootingState visible={booting} />
       <NetworkBanner status={status} offline={offline} />
 
-      {/* ── Fixed Formatting Ribbon directly below App Bar ── */}
-      {canWrite && editor && (
-        <div className="sticky top-14 z-20 border-b border-border/80 bg-background/95 shadow-2xs backdrop-blur-md">
-          <div className="mx-auto flex w-full max-w-5xl items-center px-4 py-2 sm:px-6">
-            <EditorToolbar editor={editor} />
+      {/* ── Viewport: Document / Both / Canvas ── */}
+      {viewMode === "canvas" ? (
+        <div className="relative flex-1 h-[calc(100vh-6.5rem)] w-full overflow-hidden bg-[#0d0f12]">
+          <SystemDesignCanvas doc={doc} canWrite={canWrite} />
+        </div>
+      ) : viewMode === "both" ? (
+        <div className="flex flex-1 flex-col lg:flex-row h-[calc(100vh-6.5rem)] overflow-hidden">
+          {/* Left: Document writing canvas */}
+          <div className="flex w-full lg:w-1/2 flex-col overflow-y-auto border-r border-border/80 bg-muted/20">
+            {canWrite && editor && (
+              <div className="sticky top-0 z-20 border-b border-border/80 bg-background/95 shadow-2xs backdrop-blur-md px-3 py-1.5">
+                <EditorToolbar editor={editor} />
+              </div>
+            )}
+            <div className="p-3 sm:p-5 flex-1 flex flex-col">
+              <div className="flex flex-1 flex-col rounded-2xl border border-border/80 bg-canvas px-6 py-8 shadow-sm transition-all sm:px-8 sm:py-10">
+                <div className="mb-6 border-b border-border/50 pb-6">
+                  <EditableTitle
+                    documentId={documentId}
+                    initialTitle={title}
+                    canRename={canWrite}
+                    saving={saving}
+                  />
+
+                  <dl className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-muted-foreground">
+                    <div className="inline-flex items-center gap-1.5">
+                      <Users aria-hidden className="size-3.5" />
+                      <dt className="sr-only">Owner</dt>
+                      <dd>
+                        {role === "owner"
+                          ? "You own this document"
+                          : `Owned by ${ownerName}`}
+                      </dd>
+                    </div>
+                    <span aria-hidden className="h-3 w-px bg-border" />
+                    <div className="inline-flex items-center gap-1.5">
+                      <Clock aria-hidden className="size-3.5" />
+                      <dt className="sr-only">Last edited</dt>
+                      <dd>Edited {formatRelativeTime(new Date(updatedAt))}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <CollaborativeEditor
+                  doc={doc}
+                  awareness={awareness}
+                  editable={canWrite}
+                  onStats={handleStats}
+                  onEditor={handleEditor}
+                />
+
+                {role === "viewer" && <ViewerNotice className="mt-8" />}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Interactive System Design Canvas */}
+          <div className="relative flex w-full lg:w-1/2 h-[50vh] lg:h-full overflow-hidden bg-[#0d0f12]">
+            <SystemDesignCanvas doc={doc} canWrite={canWrite} />
+          </div>
+        </div>
+      ) : (
+        /* Pure Document mode */
+        <div className="flex-1 flex flex-col">
+          {canWrite && editor && (
+            <div className="sticky top-14 z-20 border-b border-border/80 bg-background/95 shadow-2xs backdrop-blur-md">
+              <div className="mx-auto flex w-full max-w-5xl items-center px-4 py-2 sm:px-6">
+                <EditorToolbar editor={editor} />
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1 bg-muted/20">
+            <div className="mx-auto flex min-h-[calc(100vh-8.5rem)] w-full max-w-5xl flex-col px-3 py-6 sm:px-6 sm:py-8">
+              <div className="flex flex-1 flex-col rounded-2xl border border-border/80 bg-canvas px-6 py-10 shadow-sm transition-all sm:px-12 sm:py-12 md:px-16 md:py-14">
+                <div className="mb-6 border-b border-border/50 pb-6">
+                  <EditableTitle
+                    documentId={documentId}
+                    initialTitle={title}
+                    canRename={canWrite}
+                    saving={saving}
+                  />
+
+                  <dl className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-muted-foreground">
+                    <div className="inline-flex items-center gap-1.5">
+                      <Users aria-hidden className="size-3.5" />
+                      <dt className="sr-only">Owner</dt>
+                      <dd>
+                        {role === "owner"
+                          ? "You own this document"
+                          : `Owned by ${ownerName}`}
+                      </dd>
+                    </div>
+                    <span aria-hidden className="h-3 w-px bg-border" />
+                    <div className="inline-flex items-center gap-1.5">
+                      <Clock aria-hidden className="size-3.5" />
+                      <dt className="sr-only">Last edited</dt>
+                      <dd>Edited {formatRelativeTime(new Date(updatedAt))}</dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <CollaborativeEditor
+                  doc={doc}
+                  awareness={awareness}
+                  editable={canWrite}
+                  onStats={handleStats}
+                  onEditor={handleEditor}
+                />
+
+                {role === "viewer" && <ViewerNotice className="mt-8" />}
+              </div>
+            </div>
           </div>
         </div>
       )}
-
-      {/* ── Writing canvas ────────────────────────────────────────────
-          A generous, elegant document paper canvas filling the vertical viewport
-          with balanced proportions, smooth breathing margins, and comfortable reading width. */}
-      <div className="flex-1 bg-muted/20">
-        <div className="mx-auto flex min-h-[calc(100vh-8.5rem)] w-full max-w-5xl flex-col px-3 py-6 sm:px-6 sm:py-8">
-          <div className="flex flex-1 flex-col rounded-2xl border border-border/80 bg-canvas px-6 py-10 shadow-sm transition-all sm:px-12 sm:py-12 md:px-16 md:py-14">
-            {/* Document identity */}
-            <div className="mb-6 border-b border-border/50 pb-6">
-              <EditableTitle
-                documentId={documentId}
-                initialTitle={title}
-                canRename={canWrite}
-                saving={saving}
-              />
-
-              <dl className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-muted-foreground">
-                <div className="inline-flex items-center gap-1.5">
-                  <Users aria-hidden className="size-3.5" />
-                  <dt className="sr-only">Owner</dt>
-                  <dd>
-                    {role === "owner"
-                      ? "You own this document"
-                      : `Owned by ${ownerName}`}
-                  </dd>
-                </div>
-                <span aria-hidden className="h-3 w-px bg-border" />
-                <div className="inline-flex items-center gap-1.5">
-                  <Clock aria-hidden className="size-3.5" />
-                  <dt className="sr-only">Last edited</dt>
-                  <dd>Edited {formatRelativeTime(new Date(updatedAt))}</dd>
-                </div>
-              </dl>
-            </div>
-
-            {/* Editing surface */}
-            <CollaborativeEditor
-              doc={doc}
-              awareness={awareness}
-              editable={canWrite}
-              onStats={handleStats}
-              onEditor={handleEditor}
-            />
-
-            {role === "viewer" && <ViewerNotice className="mt-8" />}
-          </div>
-        </div>
-      </div>
 
       <EditorStatusBar
         status={status}

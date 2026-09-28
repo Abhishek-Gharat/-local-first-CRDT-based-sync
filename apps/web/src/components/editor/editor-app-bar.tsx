@@ -66,6 +66,9 @@ interface EditorAppBarProps {
   historyOpen: boolean;
   onHistoryOpenChange: (open: boolean) => void;
   onShowShortcuts: () => void;
+  /** View layout mode (Document notes, Canvas diagrams, or Both side-by-side) */
+  viewMode?: "document" | "both" | "canvas";
+  onViewModeChange?: (mode: "document" | "both" | "canvas") => void;
 }
 
 /**
@@ -95,6 +98,8 @@ export function EditorAppBar({
   historyOpen,
   onHistoryOpenChange,
   onShowShortcuts,
+  viewMode = "both",
+  onViewModeChange,
 }: EditorAppBarProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
@@ -179,6 +184,46 @@ export function EditorAppBar({
           >
             {ROLE_TONE[role].label}
           </span>
+        </div>
+
+        {/* ── View Switcher: Document · Both · Canvas ── */}
+        <div className="flex shrink-0 items-center rounded-xl border border-border/80 bg-muted/50 p-0.5 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => onViewModeChange?.("document")}
+            className={cn(
+              "rounded-lg px-2.5 py-1 text-xs transition-all",
+              viewMode === "document"
+                ? "bg-background text-foreground shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Document
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewModeChange?.("both")}
+            className={cn(
+              "rounded-lg px-2.5 py-1 text-xs transition-all",
+              viewMode === "both"
+                ? "bg-background text-foreground shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Both
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewModeChange?.("canvas")}
+            className={cn(
+              "rounded-lg px-2.5 py-1 text-xs transition-all",
+              viewMode === "canvas"
+                ? "bg-background text-foreground shadow-xs font-bold"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Canvas
+          </button>
         </div>
 
         {/* ── Live state ───────────────────────────────────────────── */}

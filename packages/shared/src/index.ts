@@ -11,3 +11,27 @@ export { mintSyncToken, verifySyncToken } from "./sync-token.js";
 export type { SyncTokenPayload, DocumentRole } from "./sync-token.js";
 export { MAX_MESSAGE_BYTES, parseMessageEnvelope, isMutatingSyncMessage } from "./sync-message-schema.js";
 export type { MessageEnvelope } from "./sync-message-schema.js";
+
+export {
+  NodeTypeEnum,
+  NodeColorEnum,
+  EdgeStyleEnum,
+  EdgeArrowEnum,
+  SystemNodeSchema,
+  SystemEdgeSchema,
+  SystemGroupSchema,
+  DiagramModelSchema,
+  createEmptyDiagram,
+  SYSTEM_DESIGN_TEMPLATES,
+} from "./diagram-schema.js";
+export type {
+  NodeType,
+  NodeColor,
+  EdgeStyle,
+  EdgeArrow,
+  SystemNode,
+  SystemEdge,
+  SystemGroup,
+  DiagramModel,
+} from "./diagram-schema.js";
+
