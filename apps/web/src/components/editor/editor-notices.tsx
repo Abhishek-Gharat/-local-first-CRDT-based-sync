@@ -109,33 +109,20 @@ export function ViewerNotice({ className }: { className?: string }) {
 }
 
 /**
- * Document-level "still working" state. Used while the local Y.Doc is being
- * rehydrated from IndexedDB and the first sync round-trip is still in
- * flight, so the canvas is never a blank hole.
+ * Document-level "still working" state.
+ *
+ * Rendered as an out-of-flow fixed top progress shimmer so it NEVER shifts
+ * the document canvas, title, or causes layout jumps during initial load.
  */
 export function EditorBootingState({ visible }: { visible: boolean }) {
-  const [dots, setDots] = useState(0);
-  useEffect(() => {
-    if (!visible) return;
-    const interval = window.setInterval(
-      () => setDots((n) => (n + 1) % 4),
-      400,
-    );
-    return () => window.clearInterval(interval);
-  }, [visible]);
-
   if (!visible) return null;
 
   return (
     <div
-      aria-live="polite"
-      className="flex items-center justify-center gap-2.5 border-b border-border bg-muted/40 px-4 py-2 text-[11px] font-medium text-muted-foreground sm:px-6"
+      aria-hidden="true"
+      className="pointer-events-none fixed top-0 right-0 left-0 z-50 h-0.5 overflow-hidden bg-primary/20"
     >
-      <Loader2 aria-hidden className="size-3.5 animate-spin" />
-      Opening local document
-      <span aria-hidden className="tracking-widest">
-        {".".repeat(dots)}
-      </span>
+      <div className="h-full w-full animate-pulse bg-primary" />
     </div>
   );
 }
