@@ -209,7 +209,7 @@ export function EditorToolbar({ editor, className }: EditorToolbarProps) {
   const activeStates = useEditorState({
     editor,
     selector: ({ editor: e }) => {
-      if (!e) {
+      if (!e || e.isDestroyed) {
         return {
           canUndo: false,
           canRedo: false,
@@ -217,12 +217,34 @@ export function EditorToolbar({ editor, className }: EditorToolbarProps) {
           blocks: BLOCKS.map(() => false),
         };
       }
-      return {
-        canUndo: typeof e.can === "function" ? e.can().undo() : false,
-        canRedo: typeof e.can === "function" ? e.can().redo() : false,
-        marks: MARKS.map((item) => item.isActive(e)),
-        blocks: BLOCKS.map((item) => item.isActive(e)),
-      };
+      try {
+        const canObj = typeof e.can === "function" ? e.can() : null;
+        return {
+          canUndo: typeof canObj?.undo === "function" ? Boolean(canObj.undo()) : false,
+          canRedo: typeof canObj?.redo === "function" ? Boolean(canObj.redo()) : false,
+          marks: MARKS.map((item) => {
+            try {
+              return Boolean(item.isActive(e));
+            } catch {
+              return false;
+            }
+          }),
+          blocks: BLOCKS.map((item) => {
+            try {
+              return Boolean(item.isActive(e));
+            } catch {
+              return false;
+            }
+          }),
+        };
+      } catch {
+        return {
+          canUndo: false,
+          canRedo: false,
+          marks: MARKS.map(() => false),
+          blocks: BLOCKS.map(() => false),
+        };
+      }
     },
   });
 

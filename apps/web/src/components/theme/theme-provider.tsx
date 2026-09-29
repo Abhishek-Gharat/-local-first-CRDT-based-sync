@@ -22,7 +22,7 @@ import type { ThemeProviderProps } from "next-themes";
 // React 19 flags next-themes' anti-flicker inline script tag with a benign development warning:
 // "Encountered a script tag while rendering React component..."
 // Since next-themes needs this script to prevent light/dark flash before hydration, filter this false-positive.
-if (process.env.NODE_ENV === "development") {
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   const originalError = console.error;
   console.error = (...args: unknown[]) => {
     const isScriptTagWarning = args.some(
