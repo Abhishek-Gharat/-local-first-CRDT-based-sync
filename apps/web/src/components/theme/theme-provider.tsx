@@ -19,6 +19,22 @@ import type { ThemeProviderProps } from "next-themes";
  * Transitions are deliberately *not* disabled — see `applyTheme` for how the
  * cross-fade is applied only for the duration of a change.
  */
+// React 19 flags next-themes' anti-flicker inline script tag with a benign development warning:
+// "Encountered a script tag while rendering React component..."
+// Since next-themes needs this script to prevent light/dark flash before hydration, filter this false-positive.
+if (process.env.NODE_ENV === "development") {
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => {
+    const isScriptTagWarning = args.some(
+      (arg) =>
+        typeof arg === "string" &&
+        arg.includes("Encountered a script tag while rendering React component"),
+    );
+    if (isScriptTagWarning) return;
+    originalError.apply(console, args);
+  };
+}
+
 export function ThemeProvider({
   children,
   ...props
