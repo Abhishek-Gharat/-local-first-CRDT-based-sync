@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "dev:sync": "pnpm --filter sync-server dev",
+    "dev:all": "pnpm --filter web --filter sync-server --parallel dev",
     "build": "pnpm -r --if-present build",
     "lint": "pnpm -r --if-present lint",
     "typecheck": "pnpm -r --if-present typecheck",
