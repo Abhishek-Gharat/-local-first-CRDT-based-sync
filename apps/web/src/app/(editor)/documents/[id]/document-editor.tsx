@@ -86,7 +86,7 @@ export function DocumentEditor({
   const [chars, setChars] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"document" | "both" | "canvas">("both");
+  const [viewMode, setViewMode] = useState<"document" | "canvas">("document");
   const historyRef = useRef<VersionHistoryHandle>(null);
   // The Tiptap instance, published by CollaborativeEditor. Held in state
   // rather than a ref because the export menu needs to know *at render time*
@@ -281,66 +281,10 @@ export function DocumentEditor({
       <EditorBootingState visible={booting} />
       <NetworkBanner status={status} offline={offline} />
 
-      {/* ── Viewport: Document / Both / Canvas ── */}
+      {/* ── Viewport: Canvas vs Document ── */}
       {viewMode === "canvas" ? (
-        <div className="relative flex-1 h-[calc(100vh-6.5rem)] w-full overflow-hidden bg-[#0d0f12]">
+        <div className="relative flex flex-1 h-[calc(100vh-3.5rem)] w-full overflow-hidden bg-canvas-bg">
           <SystemDesignCanvas doc={doc} canWrite={canWrite} />
-        </div>
-      ) : viewMode === "both" ? (
-        <div className="flex flex-1 flex-col lg:flex-row h-[calc(100vh-6.5rem)] overflow-hidden">
-          {/* Left: Document writing canvas */}
-          <div className="flex w-full lg:w-1/2 flex-col overflow-y-auto border-r border-border/80 bg-muted/20">
-            {canWrite && editor && (
-              <div className="sticky top-0 z-20 border-b border-border/80 bg-background/95 shadow-2xs backdrop-blur-md px-3 py-1.5">
-                <EditorToolbar editor={editor} />
-              </div>
-            )}
-            <div className="p-3 sm:p-5 flex-1 flex flex-col">
-              <div className="flex flex-1 flex-col rounded-2xl border border-border/80 bg-canvas px-6 py-8 shadow-sm transition-all sm:px-8 sm:py-10">
-                <div className="mb-6 border-b border-border/50 pb-6">
-                  <EditableTitle
-                    documentId={documentId}
-                    initialTitle={title}
-                    canRename={canWrite}
-                    saving={saving}
-                  />
-
-                  <dl className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-muted-foreground">
-                    <div className="inline-flex items-center gap-1.5">
-                      <Users aria-hidden className="size-3.5" />
-                      <dt className="sr-only">Owner</dt>
-                      <dd>
-                        {role === "owner"
-                          ? "You own this document"
-                          : `Owned by ${ownerName}`}
-                      </dd>
-                    </div>
-                    <span aria-hidden className="h-3 w-px bg-border" />
-                    <div className="inline-flex items-center gap-1.5">
-                      <Clock aria-hidden className="size-3.5" />
-                      <dt className="sr-only">Last edited</dt>
-                      <dd>Edited {formatRelativeTime(new Date(updatedAt))}</dd>
-                    </div>
-                  </dl>
-                </div>
-
-                <CollaborativeEditor
-                  doc={doc}
-                  awareness={awareness}
-                  editable={canWrite}
-                  onStats={handleStats}
-                  onEditor={handleEditor}
-                />
-
-                {role === "viewer" && <ViewerNotice className="mt-8" />}
-              </div>
-            </div>
-          </div>
-
-          {/* Right: Interactive System Design Canvas */}
-          <div className="relative flex w-full lg:w-1/2 h-[50vh] lg:h-full overflow-hidden bg-[#0d0f12]">
-            <SystemDesignCanvas doc={doc} canWrite={canWrite} />
-          </div>
         </div>
       ) : (
         /* Pure Document mode */
@@ -378,7 +322,7 @@ export function DocumentEditor({
                     <div className="inline-flex items-center gap-1.5">
                       <Clock aria-hidden className="size-3.5" />
                       <dt className="sr-only">Last edited</dt>
-                      <dd>Edited {formatRelativeTime(new Date(updatedAt))}</dd>
+                      <dd suppressHydrationWarning>Edited {formatRelativeTime(new Date(updatedAt))}</dd>
                     </div>
                   </dl>
                 </div>

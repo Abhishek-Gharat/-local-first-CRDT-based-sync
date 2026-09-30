@@ -40,7 +40,9 @@ export function useDiagramCrdt({
   });
 
   const diagramRef = useRef(diagram);
-  diagramRef.current = diagram;
+  useEffect(() => {
+    diagramRef.current = diagram;
+  }, [diagram]);
 
   // Sync state into Y.Doc
   const commitToDoc = useCallback(
@@ -73,7 +75,7 @@ export function useDiagramCrdt({
       }, "diagram-init");
     }
 
-    const observer = (event: Y.YMapEvent<any>, transaction: Y.Transaction) => {
+    const observer = (event: Y.YMapEvent<unknown>, transaction: Y.Transaction) => {
       if (transaction.origin === "diagram-local") return;
 
       const raw = map.get(DIAGRAM_KEY);

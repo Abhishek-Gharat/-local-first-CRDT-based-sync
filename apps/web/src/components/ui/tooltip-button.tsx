@@ -47,6 +47,7 @@ export function TooltipButton({
             variant={variant}
             size={size}
             aria-label={label}
+            title={props.title ?? label}
             className={cn(className)}
             {...props}
           />

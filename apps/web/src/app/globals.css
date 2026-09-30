@@ -42,6 +42,12 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-canvas: var(--canvas);
+  --color-canvas-bg: var(--canvas-bg);
+  --color-canvas-grid: var(--canvas-grid);
+  --color-canvas-node-bg: var(--canvas-node-bg);
+  --color-canvas-node-border: var(--canvas-node-border);
+  --color-canvas-edge: var(--canvas-edge);
+  --color-canvas-edge-selected: var(--canvas-edge-selected);
   --color-success: var(--status-online);
   --color-warning: var(--status-syncing);
   --color-info: var(--status-conflict);
@@ -124,6 +130,14 @@
   --status-syncing: oklch(0.72 0.15 75);
   --status-offline: oklch(0.55 0.012 266);
   --status-conflict: oklch(0.6 0.14 240);
+
+  /* canvas semantic tokens - light mode */
+  --canvas-bg: oklch(0.98 0.002 265);
+  --canvas-grid: rgba(0, 0, 0, 0.07);
+  --canvas-node-bg: oklch(1 0 0);
+  --canvas-node-border: oklch(0.9 0.005 266);
+  --canvas-edge: oklch(0.55 0.015 266);
+  --canvas-edge-selected: oklch(0.52 0.185 272);
 }
 
 .dark {
@@ -175,6 +189,14 @@
   --status-syncing: oklch(0.78 0.14 75);
   --status-offline: oklch(0.62 0.012 266);
   --status-conflict: oklch(0.72 0.13 240);
+
+  /* canvas semantic tokens - dark mode */
+  --canvas-bg: oklch(0.12 0.006 268);
+  --canvas-grid: rgba(255, 255, 255, 0.07);
+  --canvas-node-bg: oklch(0.18 0.008 268);
+  --canvas-node-border: oklch(1 0 0 / 12%);
+  --canvas-edge: oklch(0.65 0.015 266);
+  --canvas-edge-selected: oklch(0.68 0.16 272);
 }
 
 @layer base {

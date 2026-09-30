@@ -66,9 +66,9 @@ interface EditorAppBarProps {
   historyOpen: boolean;
   onHistoryOpenChange: (open: boolean) => void;
   onShowShortcuts: () => void;
-  /** View layout mode (Document notes, Canvas diagrams, or Both side-by-side) */
-  viewMode?: "document" | "both" | "canvas";
-  onViewModeChange?: (mode: "document" | "both" | "canvas") => void;
+  /** View layout mode (Document notes or Canvas diagrams) */
+  viewMode?: "document" | "canvas";
+  onViewModeChange?: (mode: "document" | "canvas") => void;
 }
 
 /**
@@ -98,7 +98,7 @@ export function EditorAppBar({
   historyOpen,
   onHistoryOpenChange,
   onShowShortcuts,
-  viewMode = "both",
+  viewMode = "document",
   onViewModeChange,
 }: EditorAppBarProps) {
   const router = useRouter();
@@ -192,7 +192,7 @@ export function EditorAppBar({
             type="button"
             onClick={() => onViewModeChange?.("document")}
             className={cn(
-              "rounded-lg px-2.5 py-1 text-xs transition-all",
+              "rounded-lg px-3 py-1 text-xs transition-all",
               viewMode === "document"
                 ? "bg-background text-foreground shadow-xs font-bold"
                 : "text-muted-foreground hover:text-foreground",
@@ -202,21 +202,9 @@ export function EditorAppBar({
           </button>
           <button
             type="button"
-            onClick={() => onViewModeChange?.("both")}
-            className={cn(
-              "rounded-lg px-2.5 py-1 text-xs transition-all",
-              viewMode === "both"
-                ? "bg-background text-foreground shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Both
-          </button>
-          <button
-            type="button"
             onClick={() => onViewModeChange?.("canvas")}
             className={cn(
-              "rounded-lg px-2.5 py-1 text-xs transition-all",
+              "rounded-lg px-3 py-1 text-xs transition-all",
               viewMode === "canvas"
                 ? "bg-background text-foreground shadow-xs font-bold"
                 : "text-muted-foreground hover:text-foreground",
